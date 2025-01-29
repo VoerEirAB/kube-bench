@@ -36,6 +36,8 @@ jobs:
         with:
           version: v1.61
           args: --verbose --timeout 2m
+          version: v1.61
+          args: --verbose --timeout 2m
   unit:
     name: Unit tests
     runs-on: ubuntu-latest
@@ -49,6 +51,7 @@ jobs:
       - name: Run unit tests
         run: make tests
       - name: Upload code coverage
+        uses: codecov/codecov-action@v5
         uses: codecov/codecov-action@v5
         with:
           file: ./coverage.txt

@@ -37,7 +37,7 @@ groups:
 
       - id: 5.1.2
         text: "Minimize access to secrets (Automated)"
-        audit: "echo \"canGetListWatchSecretsAsSystemAuthenticated: $(kubectl auth can-i get,list,watch secrets --all-namespaces --as=system:authenticated)\""
+        audit: 'echo "canGetListWatchSecretsAsSystemAuthenticated: $(kubectl auth can-i get,list,watch secrets --all-namespaces --as=system:authenticated)"'
         tests:
           test_items:
             - flag: "canGetListWatchSecretsAsSystemAuthenticated"
@@ -443,7 +443,7 @@ groups:
         type: "manual"
         remediation: |
           Review the use of capabilites in applications running on your cluster. Where a namespace
-          contains applications which do not require any Linux capabities to operate consider adding
+          contains applicaions which do not require any Linux capabities to operate consider adding
           a PSP which forbids the admission of containers which do not drop all capabilities.
         scored: false
 

@@ -43,6 +43,7 @@ COPY --from=build /usr/local/bin/kubectl /usr/local/bin/kubectl
 COPY entrypoint.sh .
 COPY cfg/ cfg/
 COPY helper_scripts/check_files_owner_in_dir.sh /go/bin
+COPY helper_scripts/check_files_owner_in_dir.sh /go/bin
 ENTRYPOINT ["./entrypoint.sh"]
 CMD ["install"]
 
@@ -50,6 +51,8 @@ CMD ["install"]
 # Build-time metadata as defined at http://label-schema.org
 ARG BUILD_DATE
 ARG VCS_REF
+ARG KUBEBENCH_VERSION
+
 ARG KUBEBENCH_VERSION
 
 LABEL org.label-schema.build-date=$BUILD_DATE \

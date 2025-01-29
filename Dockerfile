@@ -14,8 +14,10 @@ ARG KUBECTL_VERSION TARGETARCH
 RUN wget -O /usr/local/bin/kubectl "https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/${TARGETARCH}/kubectl"
 RUN wget -O kubectl.sha256 "https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/${TARGETARCH}/kubectl.sha256"
 
+
 # Verify kubectl sha256sum
 RUN /bin/bash -c 'echo "$(<kubectl.sha256)  /usr/local/bin/kubectl" | sha256sum -c -'
+
 
 RUN chmod +x /usr/local/bin/kubectl
 
@@ -44,11 +46,17 @@ RUN apk add jq
 RUN apk add bash
 
 ENV PATH=$PATH:/usr/local/mount-from-host/bin:/go/bin
+# Add bash for running helper scripts
+RUN apk add bash
+
+ENV PATH=$PATH:/usr/local/mount-from-host/bin:/go/bin
 
 COPY --from=build /go/bin/kube-bench /usr/local/bin/kube-bench
 COPY --from=build /usr/local/bin/kubectl /usr/local/bin/kubectl
 COPY entrypoint.sh .
 COPY cfg/ cfg/
+COPY helper_scripts/check_files_owner_in_dir.sh /go/bin/
+RUN chmod a+x /go/bin/check_files_owner_in_dir.sh
 COPY helper_scripts/check_files_owner_in_dir.sh /go/bin/
 RUN chmod a+x /go/bin/check_files_owner_in_dir.sh
 ENTRYPOINT ["./entrypoint.sh"]
@@ -59,7 +67,20 @@ ARG BUILD_DATE
 ARG VCS_REF
 ARG KUBEBENCH_VERSION
 
+ARG KUBEBENCH_VERSION
+
 LABEL org.label-schema.build-date=$BUILD_DATE \
+      org.label-schema.name="kube-bench" \
+      org.label-schema.vendor="Aqua Security Software Ltd." \
+      org.label-schema.version=$KUBEBENCH_VERSION \
+      org.label-schema.release=$KUBEBENCH_VERSION \
+      org.label-schema.summary="Aqua security server" \
+      org.label-schema.maintainer="admin@aquasec.com" \
+      org.label-schema.description="Run the CIS Kubernetes Benchmark tests" \
+      org.label-schema.url="https://github.com/aquasecurity/kube-bench" \
+      org.label-schema.vcs-ref=$VCS_REF \
+      org.label-schema.vcs-url="https://github.com/aquasecurity/kube-bench" \
+      org.label-schema.schema-version="1.0"
       org.label-schema.name="kube-bench" \
       org.label-schema.vendor="Aqua Security Software Ltd." \
       org.label-schema.version=$KUBEBENCH_VERSION \
