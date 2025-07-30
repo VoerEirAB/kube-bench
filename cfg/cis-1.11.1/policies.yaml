@@ -1,6 +1,6 @@
 ---
 controls:
-version: "cis-1.10"
+version: "cis-1.11.1"
 id: 5
 text: "Kubernetes Policies"
 type: "policies"
@@ -519,10 +519,10 @@ groups:
           Follow the Kubernetes documentation and setup image provenance.
         scored: false
 
-  - id: 5.7
+  - id: 5.6
     text: "General Policies"
     checks:
-      - id: 5.7.1
+      - id: 5.6.1
         text: "Create administrative boundaries between resources using namespaces (Manual)"
         type: "manual"
         remediation: |
@@ -530,7 +530,7 @@ groups:
           them.
         scored: false
 
-      - id: 5.7.2
+      - id: 5.6.2
         text: "Ensure that the seccomp profile is set to docker/default in your Pod definitions (Manual)"
         type: "manual"
         remediation: |
@@ -541,7 +541,7 @@ groups:
                 type: RuntimeDefault
         scored: false
 
-      - id: 5.7.3
+      - id: 5.6.3
         text: "Apply SecurityContext to your Pods and Containers (Manual)"
         type: "manual"
         remediation: |
@@ -550,7 +550,7 @@ groups:
           Containers.
         scored: false
 
-      - id: 5.7.4
+      - id: 5.6.4
         text: "The default namespace should not be used (Manual)"
         type: "manual"
         remediation: |

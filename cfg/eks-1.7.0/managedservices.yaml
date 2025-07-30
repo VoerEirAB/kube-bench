@@ -1,6 +1,6 @@
 ---
 controls:
-version: "eks-1.5.0"
+version: "eks-1.7.0"
 id: 5
 text: "Managed Services"
 type: "managedservices"
@@ -182,7 +182,7 @@ groups:
           aws eks update-cluster-config --region $AWS_REGION --name $CLUSTER_NAME --resources-vpc-config endpointPrivateAccess=true,endpointPublicAccess=false
 
           Note: For more detailed information, see the EKS Cluster Endpoint documentation link
-          in the references section.
+          https://docs.aws.amazon.com/eks/latest/userguide/cluster-endpoint.html
         scored: false
 
       - id: 5.4.3
