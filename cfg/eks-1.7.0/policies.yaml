@@ -12,10 +12,10 @@ groups:
         text: "Ensure that the cluster-admin role is only used where required (Automated)"
         type: "manual"
         remediation: |
-          Identify all clusterrolebindings to the cluster-admin role. Check if they are used and if
+          Identify all ClusterRoleBindings to the cluster-admin role. Check if they are used and if
           they need this role or if they could use a role with fewer privileges.
           Where possible, first bind users to a lower privileged role and then remove the
-          clusterrolebinding to the cluster-admin role :
+          ClusterRoleBinding to the cluster-admin role :
           kubectl delete clusterrolebinding [name]
         scored: false
 
@@ -64,10 +64,17 @@ groups:
         scored: false
 
       - id: 4.1.7
-        text: "Avoid use of system:masters group (Automated)"
+        text: "Cluster Access Manager API to streamline and enhance the management of access controls within EKS clusters (Automated)"
         type: "manual"
         remediation: |
-          Remove the system:masters group from all users in the cluster.
+          Log in to the AWS Management Console.
+          Navigate to Amazon EKS and select your EKS cluster.
+          Go to the Access tab and click on "Manage Access" in the "Access Configuration section".
+          Under Cluster Authentication Mode for Cluster Access settings.
+          * Click EKS API to change cluster will source authenticated IAM principals only from EKS access entry APIs.
+          * Click ConfigMap to change cluster will source authenticated IAM principals only from the aws-auth ConfigMap.
+          * Note: EKS API and ConfigMap must be selected during Cluster creation and
+            cannot be changed once the Cluster is provisioned.
         scored: false
 
       - id: 4.1.8

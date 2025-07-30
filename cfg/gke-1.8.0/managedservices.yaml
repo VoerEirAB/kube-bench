@@ -111,10 +111,28 @@ groups:
         text: "Ensure only trusted container images are used (Manual)"
         type: "manual"
         remediation: |
+          Using Google Cloud Console:
+          1. Go to Binary Authorization by visiting:
+            https://console.cloud.google.com/security/binary-authorization.
+          2. Enable the Binary Authorization API (if disabled).
+          3. Create an appropriate policy for use with the cluster. See
+            https://cloud.google.com/binary-authorization/docs/policy-yaml-reference for
+            guidance.
+          4. Go to Kubernetes Engine by visiting:
+          https://console.cloud.google.com/kubernetes/list.
+          5. Select the cluster for which Binary Authorization is disabled.
+          6. Under the details pane, within the Security section, click on the pencil icon
+            named Edit Binary Authorization.
+          7. Check the box next to Enable Binary Authorization.
+          8. Choose Enforce policy and provide a directory for the policy to be used.
+          9. Click SAVE CHANGES.
+
           Using Command Line:
           Update the cluster to enable Binary Authorization:
 
-            gcloud container cluster update <cluster_name> --enable-binauthz
+            gcloud container cluster update <cluster_name> --zone <compute_zone> --binauthz-evaluation-mode=<evaluation_mode>
+
+          See: https://cloud.google.com/sdk/gcloud/reference/container/clusters/update#--binauthz-evaluation-mode for more details around the evaluation modes available.
 
           Create a Binary Authorization Policy using the Binary Authorization Policy Reference:
           https://cloud.google.com/binary-authorization/docs/policy-yaml-reference for guidance.
@@ -494,6 +512,8 @@ groups:
           Create a new cluster without a Client Certificate:
             gcloud container clusters create [CLUSTER_NAME] \
               --no-issue-client-certificate
+          In addition it's important to restrict access to the CSR API in Kubernetes to prevent
+          users from using it to issue new client certificate credentials.
         scored: false
 
       - id: 5.8.2
@@ -586,29 +606,6 @@ groups:
         scored: false
 
       - id: 5.10.4
-        text: "Ensure use of Binary Authorization (Automated)"
-        type: "manual"
-        remediation: |
-          Using Command Line:
-          Update the cluster to enable Binary Authorization:
-            gcloud container cluster update <cluster_name> --zone <compute_zone> \
-            --binauthz-evaluation-mode=<evaluation_mode>
-
-          Example:
-            gcloud container clusters update $CLUSTER_NAME --zone $COMPUTE_ZONE \
-            --binauthz-evaluation-mode=PROJECT_SINGLETON_POLICY_ENFORCE
-
-          See: https://cloud.google.com/sdk/gcloud/reference/container/clusters/update#--binauthz-evaluation-mode
-          for more details around the evaluation modes available.
-
-          Create a Binary Authorization Policy using the Binary Authorization Policy Reference:
-          https://cloud.google.com/binary-authorization/docs/policy-yaml-reference for guidance.
-
-          Import the policy file into Binary Authorization:
-            gcloud container binauthz policy import <yaml_policy>
-        scored: false
-
-      - id: 5.10.5
         text: "Enable Security Posture (Manual)"
         type: "manual"
         remediation: |
