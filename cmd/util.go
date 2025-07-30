@@ -552,6 +552,8 @@ func getPlatformBenchmarkVersion(platform Platform) string {
 			return "rh-1.4"
 		case "4.13":
 			return "rh-1.8"
+		case "4.15":
+			return "rh-1.6"
 		}
 	case "vmware":
 		return "tkgi-1.2.53"
@@ -632,7 +634,11 @@ func getOcpValidVersion(ocpVer string) (string, error) {
 	valid := []string{"3.10", "4.1", "4.11", "4.13"}
 	for !isEmpty(ocpVer) {
 		glog.V(3).Info(fmt.Sprintf("getOcpBenchmarkVersion check for ocp: %q \n", ocpVer))
+<<<<<<< HEAD
 		if slices.Contains(valid, ocpVer) {
+=======
+		if ocpVer == "4.15" || ocpVer == "4.1" || ocpVer == "3.10" {
+>>>>>>> b5b1797 (EIR-3002: Cherrypick changes from OCP 1.6.0 over v0.11.2)
 			glog.V(1).Info(fmt.Sprintf("getOcpBenchmarkVersion found valid version for ocp: %q \n", ocpVer))
 			return ocpVer, nil
 		}
