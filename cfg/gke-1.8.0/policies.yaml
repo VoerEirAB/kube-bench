@@ -1,6 +1,6 @@
 ---
 controls:
-version: "gke-1.6.0"
+version: "gke-1.8.0"
 id: 4
 text: "Kubernetes Policies"
 type: "policies"
@@ -192,7 +192,7 @@ groups:
         type: "manual"
         remediation: |
           Follow the Kubernetes documentation and setup image provenance.
-          Also see recommendation 5.10.4.
+          Also see recommendation 5.1.4.
         scored: false
 
   - id: 4.6
