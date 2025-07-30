@@ -1,6 +1,6 @@
 ---
 controls:
-version: "cis-1.10"
+version: "cis-1.11.1"
 id: 1
 text: "Control Plane Security Configuration"
 type: "master"
@@ -290,7 +290,7 @@ groups:
         scored: true
 
       - id: 1.1.20
-        text: "Ensure that the Kubernetes PKI certificate file permissions are set to 600 or more restrictive (Manual)"
+        text: "Ensure that the Kubernetes PKI certificate file permissions are set to 644 or more restrictive (Manual)"
         audit: "find /etc/kubernetes/pki/ -name '*.crt' | xargs stat -c permissions=%a"
         use_multiple_values: true
         tests:
@@ -298,11 +298,11 @@ groups:
             - flag: "permissions"
               compare:
                 op: bitmask
-                value: "600"
+                value: "644"
         remediation: |
           Run the below command (based on the file location on your system) on the control plane node.
           For example,
-          chmod -R 600 /etc/kubernetes/pki/*.crt
+          chmod -R 644 /etc/kubernetes/pki/*.crt
         scored: false
 
       - id: 1.1.21
@@ -752,7 +752,7 @@ groups:
                 value: "aescbc,kms,secretbox"
         remediation: |
           Follow the Kubernetes documentation and configure a EncryptionConfig file.
-          In this file, choose aescbc, kms or secretbox as the encryption provider.
+          In this file, choose aescbc, kms, or secretbox as the encryption provider.
         scored: false
 
       - id: 1.2.29
@@ -773,6 +773,22 @@ groups:
           TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
           TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
           TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
+        scored: false
+
+      - id: 1.2.30
+        text: "Ensure that the --service-account-extend-token-expiration parameter is set to false (Automated)"
+        audit: "/bin/ps -ef | grep $apiserverbin | grep -v grep"
+        tests:
+          test_items:
+            - flag: "--service-account-extend-token-expiration"
+              compare:
+                op: eq
+                value: false
+        remediation: |
+          Edit the API server pod specification file /etc/kubernetes/manifests/kube-apiserver.yaml
+          on the Control Plane node and set the --service-account-extend-token-expiration
+          parameter to false.
+          --service-account-extend-token-expiration=false
         scored: false
 
   - id: 1.3

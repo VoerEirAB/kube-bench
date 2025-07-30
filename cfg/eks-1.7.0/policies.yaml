@@ -1,6 +1,6 @@
 ---
 controls:
-version: "eks-1.5.0"
+version: "eks-1.7.0"
 id: 4
 text: "Policies"
 type: "policies"
@@ -12,10 +12,10 @@ groups:
         text: "Ensure that the cluster-admin role is only used where required (Automated)"
         type: "manual"
         remediation: |
-          Identify all clusterrolebindings to the cluster-admin role. Check if they are used and if
+          Identify all ClusterRoleBindings to the cluster-admin role. Check if they are used and if
           they need this role or if they could use a role with fewer privileges.
           Where possible, first bind users to a lower privileged role and then remove the
-          clusterrolebinding to the cluster-admin role :
+          ClusterRoleBinding to the cluster-admin role :
           kubectl delete clusterrolebinding [name]
         scored: false
 
@@ -64,10 +64,17 @@ groups:
         scored: false
 
       - id: 4.1.7
-        text: "Avoid use of system:masters group (Automated)"
+        text: "Cluster Access Manager API to streamline and enhance the management of access controls within EKS clusters (Automated)"
         type: "manual"
         remediation: |
-          Remove the system:masters group from all users in the cluster.
+          Log in to the AWS Management Console.
+          Navigate to Amazon EKS and select your EKS cluster.
+          Go to the Access tab and click on "Manage Access" in the "Access Configuration section".
+          Under Cluster Authentication Mode for Cluster Access settings.
+          * Click EKS API to change cluster will source authenticated IAM principals only from EKS access entry APIs.
+          * Click ConfigMap to change cluster will source authenticated IAM principals only from the aws-auth ConfigMap.
+          * Note: EKS API and ConfigMap must be selected during Cluster creation and
+            cannot be changed once the Cluster is provisioned.
         scored: false
 
       - id: 4.1.8
@@ -176,72 +183,6 @@ groups:
         scored: false
 
       - id: 4.5.2
-        text: "Apply Security Context to Your Pods and Containers (Manual)"
-        type: "manual"
-        remediation: |
-          As a best practice we recommend that you scope the binding for privileged pods to
-          service accounts within a particular namespace, e.g. kube-system, and limiting access
-          to that namespace. For all other serviceaccounts/namespaces, we recommend
-          implementing a more restrictive policy such as this:
-
-          apiVersion: policy/v1beta1
-          kind: PodSecurityPolicy
-          metadata:
-            name: restricted
-            annotations:
-              seccomp.security.alpha.kubernetes.io/allowedProfileNames: 'docker/default,runtime/default'
-              apparmor.security.beta.kubernetes.io/allowedProfileNames: 'runtime/default'
-              seccomp.security.alpha.kubernetes.io/defaultProfileName: 'runtime/default'
-              apparmor.security.beta.kubernetes.io/defaultProfileName: 'runtime/default'
-          spec:
-            privileged: false
-            # Required to prevent escalations to root.
-            allowPrivilegeEscalation: false
-            # This is redundant with non-root + disallow privilege escalation,
-            # but we can provide it for defense in depth.
-            requiredDropCapabilities:
-            - ALL
-            # Allow core volume types.
-            volumes:
-            - 'configMap'
-            - 'emptyDir'
-            - 'projected'
-            - 'secret'
-            - 'downwardAPI'
-            # Assume that persistentVolumes set up by the cluster admin are safe to use.
-            - 'persistentVolumeClaim'
-            hostNetwork: false
-            hostIPC: false
-            hostPID: false
-            runAsUser:
-            # Require the container to run without root privileges.
-            rule: 'MustRunAsNonRoot'
-            seLinux:
-            # This policy assumes the nodes are using AppArmor rather than SELinux.
-            rule: 'RunAsAny'
-            supplementalGroups:
-            rule: 'MustRunAs'
-            ranges:
-              # Forbid adding the root group.
-              - min: 1
-                max: 65535
-            fsGroup:
-            rule: 'MustRunAs'
-            ranges:
-              # Forbid adding the root group.
-              - min: 1
-                max: 65535
-            readOnlyRootFilesystem: false
-
-          This policy prevents pods from running as privileged or escalating privileges. It also
-          restricts the types of volumes that can be mounted and the root supplemental groups
-          that can be added.
-          Another, albeit similar, approach is to start with policy that locks everything down and
-          incrementally add exceptions for applications that need looser restrictions such as
-          logging agents which need the ability to mount a host path.
-        scored: false
-
-      - id: 4.5.3
         text: "The default namespace should not be used (Automated)"
         type: "manual"
         remediation: |

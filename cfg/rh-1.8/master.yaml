@@ -1,6 +1,6 @@
 ---
 controls:
-version: rh-1.6
+version: rh-1.8
 id: 1
 text: "Master Node Security Configuration"
 type: "master"
@@ -576,48 +576,6 @@ groups:
         scored: false
 
       - id: 1.2.2
-        text: "Ensure that the --basic-auth-file argument is not set (Manual)"
-        audit: |
-          oc -n openshift-kube-apiserver get cm config -o yaml | grep --color "basic-auth"
-          oc -n openshift-apiserver get cm config -o yaml | grep --color "basic-auth"
-          # Add | awk '$3 != "AVAILABLE" { if ($3){print "available=true"}else{print "available=false"} }; to create AVAILABLE = true/false form
-          oc get clusteroperator authentication | awk '$3 != "AVAILABLE" { if ($3){print "available=true"}else{print "available=false"} }'
-        tests:
-          bin_op: and
-          test_items:
-            - flag: "basic-auth-file"
-              set: false
-            - flag: "available"
-              compare:
-                op: eq
-                value: true
-        remediation: |
-          None required. --basic-auth-file cannot be configured on OpenShift.
-        scored: false
-
-      - id: 1.2.3
-        text: "Ensure that the --token-auth-file parameter is not set (Manual)"
-        audit: |
-          # Verify that the token-auth-file flag is not present
-          oc get configmap config -n openshift-kube-apiserver -ojson | jq -r '.data["config.yaml"]' | jq '.apiServerArguments' | grep --color "token-auth-file"
-          oc get configmap config -n openshift-apiserver -ojson | jq -r '.data["config.yaml"]' | jq '.apiServerArguments' | grep --color "token-auth-file"
-          oc get kubeapiservers.operator.openshift.io cluster -o json | jq '.spec.observedConfig.apiServerArguments' | grep --color "token-auth-file"
-          #Verify that the authentication operator is running
-          oc get clusteroperator authentication | awk '$3 != "AVAILABLE" { if ($3){print "available=true"}else{print "available=false"} }'
-        tests:
-          bin_op: and
-          test_items:
-            - flag: "token-auth-file"
-              set: false
-            - flag: "available"
-              compare:
-                op: eq
-                value: true
-        remediation: |
-          None is required.
-        scored: false
-
-      - id: 1.2.4
         text: "Use https for kubelet connections (Manual)"
         audit: |
           oc get configmap config -n openshift-kube-apiserver -ojson | jq -r '.data["config.yaml"]' | jq '.apiServerArguments'
@@ -633,7 +591,7 @@ groups:
           OpenShift manages the CAs and certificates for platform components. This is not configurable.
         scored: false
 
-      - id: 1.2.5
+      - id: 1.2.3
         text: "Ensure that the kubelet uses certificates to authenticate (Manual)"
         audit: |
           oc get configmap config -n openshift-kube-apiserver -ojson | jq -r '.data["config.yaml"]' | jq '.apiServerArguments'
@@ -650,7 +608,7 @@ groups:
           This is not configurable.
         scored: false
 
-      - id: 1.2.6
+      - id: 1.2.4
         text: "Verify that the kubelet certificate authority is set as appropriate (Manual)"
         audit: |
           oc get configmap config -n openshift-kube-apiserver -ojson | jq -r '.data["config.yaml"]' | jq '.apiServerArguments'
@@ -664,7 +622,7 @@ groups:
           This is not configurable.
         scored: false
 
-      - id: 1.2.7
+      - id: 1.2.5
         text: "Ensure that the --authorization-mode argument is not set to AlwaysAllow (Manual)"
         audit: |
           oc get configmap config -n openshift-kube-apiserver -ojson | jq -r '.data["config.yaml"]' | jq -r '.apiServerArguments."authorization-mode"[]'
@@ -676,7 +634,7 @@ groups:
           None. RBAC is always on and the OpenShift API server does not use the values assigned to the flag authorization-mode.
         scored: false
 
-      - id: 1.2.8
+      - id: 1.2.6
         text: "Verify that RBAC is enabled (Manual)"
         audit: |
           oc get configmap config -n openshift-kube-apiserver -ojson | jq -r '.data["config.yaml"]' | jq -r '.apiServerArguments."authorization-mode"[]'
@@ -687,7 +645,7 @@ groups:
           None. It is not possible to disable RBAC.
         scored: false
 
-      - id: 1.2.9
+      - id: 1.2.7
         text: "Ensure that the APIPriorityAndFairness feature gate is enabled (Manual)"
         audit: |
           #Verify the APIPriorityAndFairness feature-gate
@@ -699,7 +657,7 @@ groups:
           No remediation is required. By default, the OpenShift kubelet has been fixed to send fewer requests.
         scored: false
 
-      - id: 1.2.10
+      - id: 1.2.8
         text: "Ensure that the admission control plugin AlwaysAdmit is not set (Manual)"
         audit: |
           #Verify the set of admission-plugins for OCP 4.6 and higher
@@ -712,7 +670,7 @@ groups:
           No remediation is required. The AlwaysAdmit admission controller cannot be enabled in OpenShift.
         scored: false
 
-      - id: 1.2.11
+      - id: 1.2.9
         text: "Ensure that the admission control plugin AlwaysPullImages is set (Manual)"
         audit: |
           #Verify the set of admissi    on-plugins for OCP 4.6 and higher
@@ -725,7 +683,7 @@ groups:
           None required.
         scored: false
 
-      - id: 1.2.12
+      - id: 1.2.10
         text: "Ensure that the admission control plugin ServiceAccount is set (Manual)"
         audit: |
           oc -n openshift-kube-apiserver get configmap config -o json | jq -r '.data."config.yaml"' | jq '.apiServerArguments."enable-admission-plugins"'
@@ -737,7 +695,7 @@ groups:
           None required. By default, OpenShift configures the ServiceAccount admission controller.
         scored: false
 
-      - id: 1.2.13
+      - id: 1.2.11
         text: "Ensure that the admission control plugin NamespaceLifecycle is set (Manual)"
         audit: |
           oc -n openshift-kube-apiserver get configmap config -o json | jq -r '.data."config.yaml"' | jq '.apiServerArguments."enable-admission-plugins"'
@@ -748,7 +706,7 @@ groups:
           None required. OpenShift configures NamespaceLifecycle admission controller by default.
         scored: false
 
-      - id: 1.2.14
+      - id: 1.2.12
         text: "Ensure that the admission control plugin SecurityContextConstraint is set (Manual)"
         audit: |
           oc -n openshift-kube-apiserver get configmap config -o json | jq -r '.data."config.yaml"' | jq '.apiServerArguments."enable-admission-plugins"'
@@ -759,7 +717,7 @@ groups:
           None required. By default, the SecurityContextConstraints admission controller is configured and cannot be disabled.
         scored: false
 
-      - id: 1.2.15
+      - id: 1.2.13
         text: "Ensure that the admission control plugin NodeRestriction is set (Manual)"
         audit: |
           oc -n openshift-kube-apiserver get configmap config -o json | jq -r '.data."config.yaml"' | jq '.apiServerArguments."enable-admission-plugins"'
@@ -770,7 +728,7 @@ groups:
           None required. In OpenShift, the NodeRestriction admission plugin is enabled by default and cannot be disabled.
         scored: false
 
-      - id: 1.2.16
+      - id: 1.2.14
         text: "Ensure that the --insecure-bind-address argument is not set (Manual)"
         audit: |
           # InsecureBindAddress=true should not be in the results
@@ -790,7 +748,7 @@ groups:
           None required. By default, the openshift-kube-apiserver is served over HTTPS with authentication and authorization.
         scored: false
 
-      - id: 1.2.17
+      - id: 1.2.15
         text: "Ensure that the --insecure-port argument is set to 0 (Manual)"
         audit: |
           # Should return 6443
@@ -802,7 +760,7 @@ groups:
           None required. By default, the openshift-kube-server is served over HTTPS with authentication and authorization.
         scored: false
 
-      - id: 1.2.18
+      - id: 1.2.16
         text: "Ensure that the --secure-port argument is not set to 0 (Manual)"
         audit: |
           echo bindAddress=$(oc get kubeapiservers.operator.openshift.io cluster -o json | jq '.spec.observedConfig.servingInfo.bindAddress')
@@ -824,7 +782,7 @@ groups:
           the secure API endpoint is bound to 0.0.0.0:6443.
         scored: false
 
-      - id: 1.2.19
+      - id: 1.2.17
         text: "Ensure that the healthz endpoint is protected by RBAC (Manual)"
         type: manual
         audit: |
@@ -851,7 +809,7 @@ groups:
           None required as profiling data is protected by RBAC.
         scored: false
 
-      - id: 1.2.20
+      - id: 1.2.18
         text: "Ensure that the --audit-log-path argument is set (Manual)"
         audit: |
           # Should return “/var/log/kube-apiserver/audit.log"
@@ -881,7 +839,7 @@ groups:
           None required. This is managed by the cluster apiserver operator. By default, auditing is enabled.
         scored: false
 
-      - id: 1.2.21
+      - id: 1.2.19
         text: "Ensure that the audit logs are forwarded off the cluster for retention (Manual)"
         type: "manual"
         remediation: |
@@ -889,7 +847,7 @@ groups:
           https://docs.openshift.com/container-platform/4.15/observability/logging/log_collection_forwarding/configuring-log-forwarding.html
         scored: false
 
-      - id: 1.2.22
+      - id: 1.2.20
         text: "Ensure that the maximumRetainedFiles argument is set to 10 or as appropriate (Manual)"
         audit: |
           output=$(oc get configmap config -n openshift-kube-apiserver -o json | jq -r '.data["config.yaml"]' | jq -r '.apiServerArguments["audit-log-maxbackup"][]?')
@@ -904,8 +862,8 @@ groups:
           None required. By default, auditing is enabled and the maximum audit log backup is set to 10.
         scored: false
 
-      - id: 1.2.23
-        text: "Ensure that the maximumFileSizeMegabytes argument is set to 100 (Manual)"
+      - id: 1.2.21
+        text: "Configure Kubernetes API Server Maximum Audit Log Size (Manual)"
         audit: |
           output=$(oc get configmap config -n openshift-kube-apiserver -o json | jq -r '.data["config.yaml"]' | jq -r '.apiServerArguments["audit-log-maxsize"][]?')
           [ "$output" != "" ] && [ "$output" != "null" ] && echo "audit-log-maxsize=$output" || true
@@ -917,10 +875,9 @@ groups:
                 value: 100
         remediation: |
           None. The audit-log-maxsize parameter is by default set to 100 and not supported to change.
-          maximumFileSizeMegabytes: 100
         scored: false
 
-      - id: 1.2.24
+      - id: 1.2.22
         text: "Ensure that the --request-timeout argument is set (Manual)"
         audit: |
           echo requestTimeoutSeconds=`oc get configmap config -n openshift-kube-apiserver -ojson | jq -r '.data["config.yaml"]' | jq -r '.apiServerArguments["min-request-timeout"][]?'`
@@ -934,7 +891,7 @@ groups:
           None required. By default, min-request-timeout is set to 3600 seconds in OpenShift.
         scored: false
 
-      - id: 1.2.25
+      - id: 1.2.23
         text: "Ensure that the --service-account-lookup argument is set to true (Manual)"
         audit: |
           output=$(oc get configmap config -n openshift-kube-apiserver -ojson | jq -r '.data["config.yaml"]' | jq -r '.apiServerArguments["service-account-lookup"][0]')
@@ -946,7 +903,7 @@ groups:
           None required. Service account lookup is enabled by default.
         scored: false
 
-      - id: 1.2.26
+      - id: 1.2.24
         text: "Ensure that the --service-account-key-file argument is set as appropriate (Manual)"
         audit: |
           oc get configmap config -n openshift-kube-apiserver -ojson | jq -r '.data["config.yaml"]' | jq -r .serviceAccountPublicKeyFiles[]
@@ -961,7 +918,7 @@ groups:
           OpenShift does not reuse the apiserver TLS key. This is not configurable.
         scored: false
 
-      - id: 1.2.27
+      - id: 1.2.25
         text: "Ensure that the --etcd-certfile and --etcd-keyfile arguments are set as appropriate (Manual)"
         audit: |
           oc get configmap config -n openshift-kube-apiserver -ojson | jq -r '.data["config.yaml"]' | jq -r '.apiServerArguments["etcd-certfile"]'
@@ -976,7 +933,7 @@ groups:
           This is not configurable.
         scored: false
 
-      - id: 1.2.28
+      - id: 1.2.26
         text: "Ensure that the --tls-cert-file and --tls-private-key-file arguments are set as appropriate (Manual)"
         audit: |
           oc get configmap config -n openshift-kube-apiserver -ojson | jq -r '.data["config.yaml"]' | jq -r '.apiServerArguments["tls-cert-file"][]'
@@ -996,7 +953,7 @@ groups:
           https://docs.openshift.com/container-platform/4.15/security/certificates/api-server.html
         scored: false
 
-      - id: 1.2.29
+      - id: 1.2.27
         text: "Ensure that the --client-ca-file argument is set as appropriate (Manual)"
         audit: |
           oc get configmap config -n openshift-kube-apiserver -ojson | jq -r '.data["config.yaml"]' | jq -r '.apiServerArguments["client-ca-file"][]'
@@ -1013,7 +970,7 @@ groups:
           https://docs.openshift.com/container-platform/4.15/security/certificate_types_descriptions/user-provided-certificates-for-api-server.html#location
         scored: false
 
-      - id: 1.2.30
+      - id: 1.2.28
         text: "Ensure that the --etcd-cafile argument is set as appropriate (Manual)"
         audit: |
           oc get configmap config -n openshift-kube-apiserver -ojson | jq -r '.data["config.yaml"]' | jq -r '.apiServerArguments["etcd-cafile"][]'
@@ -1026,7 +983,7 @@ groups:
           arguments appropriately in the API server. Communication with etcd is secured by the etcd serving CA.
         scored: false
 
-      - id: 1.2.31
+      - id: 1.2.29
         text: "Ensure that encryption providers are appropriately configured (Manual)"
         audit: |
           # encrypt the etcd datastore
@@ -1039,7 +996,7 @@ groups:
           https://docs.openshift.com/container-platform/4.15/security/encrypting-etcd.html
         scored: false
 
-      - id: 1.2.32
+      - id: 1.2.30
         text: "Ensure that the API Server only makes use of Strong Cryptographic Ciphers (Manual)"
         type: manual
         audit: |
@@ -1058,7 +1015,7 @@ groups:
           profile to 1.2.
         scored: false
 
-      - id: 1.2.33
+      - id: 1.2.31
         text: "Ensure unsupported configuration overrides are not used (Manual)"
         audit: |
           oc get kubeapiserver/cluster -o jsonpath='{.spec.unsupportedConfigOverrides}'
@@ -1141,28 +1098,6 @@ groups:
         remediation: |
           None required.
           Certificates for OpenShift platform components are automatically created and rotated by the OpenShift Container Platform.
-        scored: false
-
-      - id: 1.3.5
-        text: "Ensure that the --bind-address argument is set to 127.0.0.1 (Manual)"
-        audit: |
-          echo secure-port=`oc get configmaps config -n openshift-kube-controller-manager -ojson | jq -r '.data["config.yaml"]' | jq '.extendedArguments["secure-port"][]'`
-          #Following should fail with a http code 403
-          POD=$(oc get pods -n openshift-kube-controller-manager -l app=kube-controller-manager -o jsonpath='{.items[0].metadata.name}')
-          oc rsh -n openshift-kube-controller-manager -c kube-controller-manager $POD curl https://localhost:10257/metrics -k
-          # Cleanup
-          unset POD
-        tests:
-          bin_op: and
-          test_items:
-            - flag: "secure-port"
-              compare:
-                op: eq
-                value: "\"10257\""
-            - flag: "\"code\": 403"
-        remediation: |
-          Edit the Controller Manager pod specification file $controllermanagerconf
-          on the master node and ensure the correct value for the --bind-address parameter.
         scored: false
 
   - id: 1.4
