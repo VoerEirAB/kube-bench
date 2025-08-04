@@ -521,15 +521,17 @@ func getPlatformBenchmarkVersion(platform Platform) string {
 	glog.V(3).Infof("getPlatformBenchmarkVersion platform: %s", platform)
 	switch platform.Name {
 	case "eks":
-		return "eks-1.5.0"
+		return "eks-1.7.0"
 	case "aks":
 		return "aks-1.7"
 	case "gke":
 		switch platform.Version {
 		case "1.15", "1.16", "1.17", "1.18", "1.19":
 			return "gke-1.0"
-		case "1.29", "1.30", "1.31":
+		case "1.29":
 			return "gke-1.6.0"
+		case "1.30", "1.31", "1.32":
+			return "gke-1.8.0"
 		default:
 			return "gke-1.2.0"
 		}
@@ -541,6 +543,10 @@ func getPlatformBenchmarkVersion(platform Platform) string {
 			return "rh-0.7"
 		case "4.1":
 			return "rh-1.0"
+		case "4.15":
+			return "rh-1.6"
+		case "4.17":
+			return "rh-1.8"
 		}
 	case "vmware":
 		return "tkgi-1.2.53"
@@ -619,7 +625,7 @@ func getOcpValidVersion(ocpVer string) (string, error) {
 
 	for !isEmpty(ocpVer) {
 		glog.V(3).Info(fmt.Sprintf("getOcpBenchmarkVersion check for ocp: %q \n", ocpVer))
-		if ocpVer == "3.10" || ocpVer == "4.1" {
+		if ocpVer == "4.17" || ocpVer == "4.15" || ocpVer == "4.1" || ocpVer == "3.10" {
 			glog.V(1).Info(fmt.Sprintf("getOcpBenchmarkVersion found valid version for ocp: %q \n", ocpVer))
 			return ocpVer, nil
 		}
