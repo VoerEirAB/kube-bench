@@ -313,8 +313,9 @@ groups:
           oc get --raw /api/v1/nodes/$NODE_NAME/proxy/configz | jq '.kubeletconfig.streamingConnectionIdleTimeout' 2> /dev/null
         tests:
           test_items:
-            - flag: "0s"
-              set: false
+            - compare:
+              op: noteq
+              value: "0s"
         remediation: |
           By default, OpenShift sets streamingConnectionIdleTimeout to 4h0m0s.
           If it is manually set to "0s", this disables timeouts — which is insecure.
