@@ -393,52 +393,6 @@ groups:
         scored: false
 
       - id: 5.2.9
-        text: "Minimize the admission of containers with added capabilities (Manual)"
-        audit: |
-          kubectl get pods --all-namespaces -o custom-columns=POD_NAME:.metadata.name,POD_NAMESPACE:.metadata.namespace --no-headers | while read -r pod_name pod_namespace
-          do
-            # Retrieve container(s) for each Pod.
-            kubectl get pod "${pod_name}" --namespace "${pod_namespace}" -o json | jq -c '.spec.containers[]' | while read -r container
-            do
-              # Retrieve container's name
-              container_name=$(echo ${container} | jq -r '.name')
-              # Retrieve container's added capabilities
-              container_caps_add=$(echo ${container} | jq -r '.securityContext.capabilities.add' | sed -e 's/null/notset/g')
-              # Set is_compliant to true by default.
-              is_compliant=true
-              caps_list=""
-              if [ "${container_caps_add}" != "notset" ]; then
-                # Loop through all caps and append caps_list, then set is_compliant to false.
-                for cap in $(echo "${container_caps_add}" | jq -r '.[]'); do
-                caps_list+="${cap},"
-                is_compliant=false
-                done
-                # Remove trailing comma for the last list member.
-                caps_list=${caps_list%,}
-              fi
-              if [ "${is_compliant}" = true ]; then
-                echo "***pod_name: ${pod_name} container_name: ${container_name} pod_namespace: ${pod_namespace} container_caps_add: ${container_caps_add} is_compliant: true"
-              else
-                echo "***pod_name: ${pod_name} container_name: ${container_name} pod_namespace: ${pod_namespace} container_caps_add: ${caps_list} is_compliant: false"
-              fi
-            done
-          done
-        use_multiple_values: true
-        tests:
-          test_items:
-            - flag: "is_compliant"
-              compare:
-                op: eq
-                value: true
-        remediation: |
-          Ensure that `allowedCapabilities` is not present in policies for the cluster unless
-          it is set to an empty array.
-          Audit: the audit retrieves each Pod's container(s) added capabilities.
-          Condition: is_compliant is false if added capabilities are added for a given container.
-          Default: Containers run with a default set of capabilities as assigned by the Container Runtime.
-        scored: false
-
-      - id: 5.2.10
         text: "Minimize the admission of containers with capabilities assigned (Manual)"
         type: "manual"
         remediation: |
@@ -447,7 +401,7 @@ groups:
           a PSP which forbids the admission of containers which do not drop all capabilities.
         scored: false
 
-      - id: 5.2.11
+      - id: 5.2.10
         text: "Minimize the admission of Windows HostProcess containers (Manual)"
         type: "manual"
         remediation: |
@@ -455,7 +409,7 @@ groups:
           admission of containers that have `.securityContext.windowsOptions.hostProcess` set to `true`.
         scored: false
 
-      - id: 5.2.12
+      - id: 5.2.11
         text: "Minimize the admission of HostPath volumes (Manual)"
         type: "manual"
         remediation: |
@@ -463,7 +417,7 @@ groups:
           admission of containers with `hostPath` volumes.
         scored: false
 
-      - id: 5.2.13
+      - id: 5.2.12
         text: "Minimize the admission of containers which use HostPorts (Manual)"
         type: "manual"
         remediation: |

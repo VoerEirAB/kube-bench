@@ -749,6 +749,20 @@ func Test_getPlatformBenchmarkVersion(t *testing.T) {
 			want: "rh-1.0",
 		},
 		{
+			name: "openshift4_15",
+			args: args{
+				platform: Platform{Name: "ocp", Version: "4.15"},
+			},
+			want: "rh-1.6",
+		},
+		{
+			name: "openshift4_17",
+			args: args{
+				platform: Platform{Name: "ocp", Version: "4.17"},
+			},
+			want: "rh-1.8",
+		},
+		{
 			name: "k3s",
 			args: args{
 				platform: Platform{Name: "k3s", Version: "1.27"},
@@ -805,6 +819,7 @@ func Test_getOcpValidVersion(t *testing.T) {
 		{openShiftVersion: "4.1", succeed: true, exp: "4.1"},
 		{openShiftVersion: "4.5", succeed: true, exp: "4.1"},
 		{openShiftVersion: "4.6", succeed: true, exp: "4.1"},
+		{openShiftVersion: "4.16", succeed: true, exp: "4.15"},
 		{openShiftVersion: "invalid", succeed: false, exp: ""},
 	}
 	for _, c := range cases {
