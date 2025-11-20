@@ -96,7 +96,7 @@ spec:
               "--targets",
               "master,controlplane,node,etcd,policies",
               "--benchmark",
-              "rh-1.6",
+              "rh-1.8",
             ]
           image: docker.io/aquasec/kube-bench:latest
           name: kube-bench
@@ -133,9 +133,6 @@ spec:
               readOnly: true
             - mountPath: /etc/cni/net.d/
               name: etc-cni-netd
-              readOnly: true
-            - mountPath: /opt/cni/bin/
-              name: opt-cni-bin
               readOnly: true
             - name: etc-passwd
               mountPath: /etc/passwd
@@ -180,9 +177,6 @@ spec:
         - hostPath:
             path: /etc/cni/net.d/
           name: etc-cni-netd
-        - hostPath:
-            path: /opt/cni/bin/
-          name: opt-cni-bin
         - hostPath:
             path: "/etc/passwd"
           name: etc-passwd

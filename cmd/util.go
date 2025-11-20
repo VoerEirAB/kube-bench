@@ -522,7 +522,12 @@ func getPlatformBenchmarkVersion(platform Platform) string {
 	glog.V(3).Infof("getPlatformBenchmarkVersion platform: %s", platform)
 	switch platform.Name {
 	case "eks":
-		return "eks-1.7.0"
+		switch platform.Version {
+		case "1.24":
+			return "eks-1.5.0"
+		default:
+			return "eks-1.7.0"
+		}
 	case "aks":
 		return "aks-1.7"
 	case "gke":
@@ -544,12 +549,12 @@ func getPlatformBenchmarkVersion(platform Platform) string {
 			return "rh-0.7"
 		case "4.1":
 			return "rh-1.0"
-		case "4.11":
+		case "4.11", "4.12":
 			return "rh-1.4"
 		case "4.13":
 			return "rh-1.8"
 		case "4.15":
-			return "rh-1.6"
+			return "rh-1.8"
 		case "4.17":
 			return "rh-1.8"
 		}
@@ -629,24 +634,15 @@ func getOpenShiftInfo() Platform {
 
 func getOcpValidVersion(ocpVer string) (string, error) {
 	ocpOriginal := ocpVer
-	valid := []string{"3.10", "4.1", "4.11", "4.13"}
+	valid := []string{"3.10", "4.1", "4.11", "4.13", "4.15"}
 	for !isEmpty(ocpVer) {
 		glog.V(3).Info(fmt.Sprintf("getOcpBenchmarkVersion check for ocp: %q \n", ocpVer))
-<<<<<<< HEAD
-<<<<<<< HEAD
 		if slices.Contains(valid, ocpVer) {
-=======
-		if ocpVer == "4.15" || ocpVer == "4.1" || ocpVer == "3.10" {
->>>>>>> b5b1797 (EIR-3002: Cherrypick changes from OCP 1.6.0 over v0.11.2)
-=======
-		if ocpVer == "4.17" || ocpVer == "4.15" || ocpVer == "4.1" || ocpVer == "3.10" {
->>>>>>> 8f2964a (EIR-3002: Make changes corresponding to CIS GKE 1.8.0, EKS 1.7.0, OCP 1.8.0 and K8s 1.11.1)
 			glog.V(1).Info(fmt.Sprintf("getOcpBenchmarkVersion found valid version for ocp: %q \n", ocpVer))
 			return ocpVer, nil
 		}
 		ocpVer = decrementVersion(ocpVer)
 	}
-
 	glog.V(1).Info(fmt.Sprintf("getOcpBenchmarkVersion unable to find a match for: %q", ocpOriginal))
 	return "", fmt.Errorf("unable to find a matching Benchmark Version match for ocp version: %s", ocpOriginal)
 }
