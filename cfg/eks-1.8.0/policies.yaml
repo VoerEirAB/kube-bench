@@ -187,7 +187,7 @@ groups:
           Where possible, remove access to the proxy sub-resource of Node objects.
           Restrict this permission only to identities that explicitly require kubelet-level
           interactions.
-        scored: false  
+        scored: false
 
       - id: 4.1.11
         text: "Minimize access to webhook configuration objects (Manual)"
@@ -205,8 +205,7 @@ groups:
           Where possible, remove access to the 'token' sub-resource of
           ServiceAccount objects. Limit this permission only to identities that need
           to programmatically request short-lived tokens.
-        scored: false  
-              
+        scored: false
 
   - id: 4.2
     text: "Pod Security Standards"
