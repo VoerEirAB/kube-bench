@@ -1,6 +1,6 @@
 ---
 controls:
-version: "eks-1.7.0"
+version: "eks-1.8.0"
 id: 5
 text: "Managed Services"
 type: "managedservices"
@@ -196,11 +196,19 @@ groups:
         scored: false
 
       - id: 5.4.4
-        text: "Ensure Network Policy is Enabled and set as appropriate (Automated)"
-        type: "manual"
+        text: "Ensure AmazonEKSNetworkingPolicy is Enabled and set as appropriate (Automated)"
+        type: "automated"
         remediation: |
-          Utilize Calico or other network policy engine to segment and isolate your traffic.
-        scored: false
+          Ensure that the Amazon VPC CNI add-on is configured with NetworkPolicy enabled.
+          Run the following command:
+
+            aws eks update-addon --cluster-name <CLUSTER_NAME> \
+              --addon-name vpc-cni \
+              --configuration-values '{"enableNetworkPolicy":"true"}'
+
+          This ensures native Kubernetes NetworkPolicy enforcement using the AWS-managed
+          AmazonEKSNetworkingPolicy engine.
+        scored: true
 
       - id: 5.4.5
         text: "Encrypt traffic to HTTPS load balancers with TLS certificates (Manual)"

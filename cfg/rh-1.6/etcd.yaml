@@ -1,12 +1,12 @@
 ---
 controls:
-version: rh-1.8
+version: rh-1.6
 id: 2
-text: "Etcd"
+text: "Etcd Node Configuration"
 type: "etcd"
 groups:
   - id: 2
-    text: "Etcd"
+    text: "Etcd Node Configuration Files"
     checks:
       - id: 2.1
         text: "Ensure that the --cert-file and --key-file arguments are set as appropriate (Manual)"

@@ -1,8 +1,8 @@
 ---
 controls:
-version: rh-1.8
+version: rh-1.6
 id: 4
-text: "Worker Nodes"
+text: "Worker Node Security Configuration"
 type: "node"
 groups:
   - id: 4.1
@@ -191,32 +191,15 @@ groups:
       - id: 4.2.1
         text: "Activate Garbage collection in OpenShift Container Platform 4, as appropriate (Manual)"
         audit: |
-          echo "Retrieving and inspecting garbage collection configuration from node-local kubelet configz..."
-
           NODE_NAME=$(oc get pod $HOSTNAME -o=jsonpath='{.spec.nodeName}')
-          oc get --raw /api/v1/nodes/$NODE_NAME/proxy/configz | jq '.kubeletconfig'
+          oc debug node/$NODE_NAME -- chroot /host grep -B4 -A1 anonymous /etc/kubernetes/kubelet.conf 2> /dev/null
+        use_multiple_values: true
         tests:
           test_items:
-            - flag: "evictionHard"
-            - flag: "imageGCHighThresholdPercent"
-            - flag: "imageGCLowThresholdPercent"
-            - flag: "imageMinimumGCAge"
+            - flag: "enabled: true"
+              set: false
         remediation: |
-          OpenShift manages node garbage collection through KubeletConfig custom resources per MachineConfigPool.
-          To configure or adjust garbage collection thresholds, follow the documentation:
-          https://docs.openshift.com/container-platform/latest/nodes/nodes/nodes-nodes-garbage-collection.html
-
-          Example: Create or modify a KubeletConfig object to include:
-          ---
-          evictionHard:
-            "memory.available": "200Mi"
-            "nodefs.available": "10%"
-            "imagefs.available": "15%"
-          imageGCHighThresholdPercent: 85
-          imageGCLowThresholdPercent: 80
-          imageMinimumGCAge: "2m0s"
-
-          Then apply the `KubeletConfig` to the appropriate `MachineConfigPool`.
+          To configure, follow the directions in Garbage Collection Remediation https://docs.openshift.com/container-platform/latest/nodes/nodes/nodes-nodes-garbage-collection.html.
         scored: true
 
       - id: 4.2.2
