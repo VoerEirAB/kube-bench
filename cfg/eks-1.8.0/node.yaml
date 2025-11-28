@@ -1,6 +1,6 @@
 ---
 controls:
-version: "eks-1.7.0"
+version: "eks-1.8.0"
 id: 3
 text: "Worker Nodes"
 type: "node"
@@ -352,10 +352,6 @@ groups:
               compare:
                 op: gte
                 value: 0
-            - flag: --event-qps
-              path: '{.eventRecordQPS}'
-              set: false
-          bin_op: or
         remediation: |
           If using a Kubelet config file, edit the file to set eventRecordQPS: to an appropriate
           level.
