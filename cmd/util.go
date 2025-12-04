@@ -522,20 +522,21 @@ func getPlatformBenchmarkVersion(platform Platform) string {
 	glog.V(3).Infof("getPlatformBenchmarkVersion platform: %s", platform)
 	switch platform.Name {
 	case "eks":
-		oldEKSVersions := []string{"1.15", "1.16", "1.17", "1.18", "1.19", "1.20", "1.21", "1.22", "1.23", "1.24", "1.25", "1.26", "1.27", "1.28"}
-		if slices.Contains(oldEKSVersions, platform.Version) {
+		switch platform.Version {
+		case "1.24":
 			return "eks-1.5.0"
+		default:
+			return "eks-1.7.0"
 		}
-		return "eks-1.7.0"
 	case "aks":
 		return "aks-1.7"
 	case "gke":
 		switch platform.Version {
 		case "1.15", "1.16", "1.17", "1.18", "1.19":
 			return "gke-1.0"
-		case "1.28", "1.29", "1.30":
+		case "1.29":
 			return "gke-1.6.0"
-		case "1.31", "1.32", "1.33", "1.34":
+		case "1.30", "1.31", "1.32":
 			return "gke-1.8.0"
 		default:
 			return "gke-1.2.0"
@@ -548,9 +549,13 @@ func getPlatformBenchmarkVersion(platform Platform) string {
 			return "rh-0.7"
 		case "4.1":
 			return "rh-1.0"
-		case "4.11":
+		case "4.11", "4.12":
 			return "rh-1.4"
 		case "4.13":
+			return "rh-1.8"
+		case "4.15":
+			return "rh-1.8"
+		case "4.17":
 			return "rh-1.8"
 		}
 	case "vmware":
@@ -629,7 +634,7 @@ func getOpenShiftInfo() Platform {
 
 func getOcpValidVersion(ocpVer string) (string, error) {
 	ocpOriginal := ocpVer
-	valid := []string{"3.10", "4.1", "4.11", "4.13"}
+	valid := []string{"3.10", "4.1", "4.11", "4.13", "4.15"}
 	for !isEmpty(ocpVer) {
 		glog.V(3).Info(fmt.Sprintf("getOcpBenchmarkVersion check for ocp: %q \n", ocpVer))
 		if slices.Contains(valid, ocpVer) {
@@ -638,7 +643,6 @@ func getOcpValidVersion(ocpVer string) (string, error) {
 		}
 		ocpVer = decrementVersion(ocpVer)
 	}
-
 	glog.V(1).Info(fmt.Sprintf("getOcpBenchmarkVersion unable to find a match for: %q", ocpOriginal))
 	return "", fmt.Errorf("unable to find a matching Benchmark Version match for ocp version: %s", ocpOriginal)
 }
