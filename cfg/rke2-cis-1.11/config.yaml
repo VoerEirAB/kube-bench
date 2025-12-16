@@ -46,7 +46,9 @@ etcd:
     - etcd
 
   etcd:
-    confs: /var/lib/rancher/rke2/server/db/etcd/config
+    confs:
+      - /var/lib/rancher/rke2/agent/pod-manifests/etcd.yaml
+    defaultconf: /var/lib/rancher/rke2/agent/pod-manifests/etcd.yaml
 
 node:
   components:
@@ -59,6 +61,7 @@ node:
       - containerd
     defaultkubeconfig: /var/lib/rancher/rke2/agent/kubelet.kubeconfig
     defaultcafile: /var/lib/rancher/rke2/agent/client-ca.crt
+    defaultconf: /var/lib/rancher/rke2/agent/etc/kubelet.conf.d/00-rke2-defaults.conf
 
   proxy:
     bins:
