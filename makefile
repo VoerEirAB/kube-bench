@@ -1,18 +1,22 @@
 SOURCES := $(shell find . -name '*.go')
 BINARY := kube-bench
 DOCKER_ORG ?= voereir
-VERSION ?= v0.11.2-T5.1.0
+VERSION ?= v0.11.3-T5.1.0
 KUBEBENCH_VERSION ?= $(shell git describe --tags --abbrev=0)
 IMAGE_NAME ?= $(DOCKER_ORG)/$(BINARY):$(VERSION)
 IMAGE_NAME_UBI ?= $(DOCKER_ORG)/$(BINARY):$(VERSION)-ubi
 GOOS ?= linux
 BUILD_OS := linux
 uname := $(shell uname -s)
-BUILDX_PLATFORM ?= linux/amd64,linux/arm64,linux/arm,linux/ppc64le,linux/s390x
+# BUILDX_PLATFORM ?= linux/amd64,linux/arm64,linux/arm,linux/ppc64le,linux/s390x
+BUILDX_PLATFORM ?= linux/amd64,linux/arm64/v8
 DOCKER_ORGS ?= voereir
 GOARCH ?= $@
 KUBECTL_VERSION ?= 1.34.0-alpha.1
 ARCH ?= $(shell go env GOARCH)
+JOBS ?= 4
+BUILD_DATE := $(shell date +%F)
+VCS_REF := $(shell git rev-parse --short HEAD)
 
 ifneq ($(findstring Microsoft,$(shell uname -r)),)
 	BUILD_OS := windows
@@ -32,8 +36,11 @@ KIND_IMAGE ?= kindest/node:v1.21.1@sha256:69860bda5563ac81e3c0057d654b5253219618
 docker:
 	set -xe; \
 	for org in $(DOCKER_ORGS); do \
-		docker buildx build --tag $${org}/kube-bench:${VERSION} \
-		--platform $(BUILDX_PLATFORM) --push \
+		podman farm build --local=false --farm ts-ci-farm --platforms $(BUILDX_PLATFORM) \
+		--jobs $(JOBS) --disable-compression=false \
+		--tag $${org}/kube-bench \
+		--build-arg BUILD_DATE=$(BUILD_DATE) \
+		--build-arg VCS_REF=$(VCS_REF) \
 		--build-arg KUBEBENCH_VERSION=$(KUBEBENCH_VERSION) \
 		--build-arg KUBECTL_VERSION=$(KUBECTL_VERSION) . ; \
 	done
