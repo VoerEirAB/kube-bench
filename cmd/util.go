@@ -571,6 +571,7 @@ func getPlatformBenchmarkVersion(platform Platform) string {
 			return "rke-cis-1.7"
 		}
 	case "rke2r":
+		// https://docs.rke2.io/security/hardening_guide
 		switch platform.Version {
 		case "1.23":
 			return "rke2-cis-1.23"
@@ -578,6 +579,10 @@ func getPlatformBenchmarkVersion(platform Platform) string {
 			return "rke2-cis-1.24"
 		case "1.25", "1.26", "1.27":
 			return "rke2-cis-1.7"
+		case "1.29", "1.30", "1.31":
+			return "rke2-cis-1.10"
+		case "1.32", "1.33":
+			return "rke2-cis-1.11"
 		default:
 			return "rke2-cis-1.7"
 		}
