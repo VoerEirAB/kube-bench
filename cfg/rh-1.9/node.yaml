@@ -1,6 +1,6 @@
 ---
 controls:
-version: rh-1.8
+version: rh-1.9
 id: 4
 text: "Worker Nodes"
 type: "node"
@@ -48,7 +48,7 @@ groups:
           echo "No matching pods found on the current node."
           else
           # Execute the stat command
-          oc exec -n openshift-sdn "$POD_NAME" -- stat -Lc "$i %n permissions=%a" /config/kube-proxy-config.yaml  2>/dev/null
+          oc exec -n openshift-sdn "$POD_NAME"  -- stat -Lc "$i %n permissions=%a" /config/kube-proxy-config.yaml  2>/dev/null
           fi
         tests:
           test_items:
@@ -353,6 +353,14 @@ groups:
               compare:
                 op: gte
                 value: 1
+        impact: |
+          Setting this parameter to 0 could result in a denial of service condition due to excessive events being
+          created. The cluster's event processing and storage systems should be scaled to handle expected event loads.
+          The kubelet's --event-qps (surfaced in OpenShift via kubeAPIQPS / eventRecordQPS) controls the rate at
+          which events are created and sent. Setting it to 0 disables rate limiting, meaning event creation is
+          unlimited. Multiple OpenShift/Kubernetes security guides note that setting --event-qps too low risks
+          missing important events, while setting it to the unlimited value 0 could result in a denial of service on
+          the kubelet due to excessive events overwhelming event processing and storage.
         remediation: |
           OpenShift sets kubeAPIQPS to a default of 50, which is appropriate in most environments.
           If kubeAPIQPS is set to 0, event rate limiting is disabled, which can overwhelm the kubelet with excessive events.
