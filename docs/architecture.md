@@ -25,12 +25,12 @@ The following table shows the valid targets based on the CIS Benchmark version.
 | cis-1.9              | master, controlplane, node, etcd, policies |
 | cis-1.10              | master, controlplane, node, etcd, policies |
 | cis-1.11              | master, controlplane, node, etcd, policies |
-| cis-1.11.1            | master, controlplane, node, etcd, policies |
-| cis-1.12.0            | master, controlplane, node, etcd, policies |
+| cis-1.12              | master, controlplane, node, etcd, policies |
 | gke-1.0              | master, controlplane, node, etcd, policies, managedservices |
 | gke-1.2.0            | controlplane, node, policies, managedservices |
 | gke-1.6.0            | controlplane, node, policies, managedservices |
 | gke-1.8.0            | controlplane, node, policies, managedservices |
+| gke-1.9.0            | controlplane, node, policies, managedservices |
 | eks-1.0.1            | controlplane, node, policies, managedservices |
 | eks-1.1.0            | controlplane, node, policies, managedservices |
 | eks-1.2.0            | controlplane, node, policies, managedservices |
@@ -40,11 +40,12 @@ The following table shows the valid targets based on the CIS Benchmark version.
 | ack-1.0              | master, controlplane, node, etcd, policies, managedservices |
 | aks-1.0              | controlplane, node, policies, managedservices |
 | aks-1.7              | controlplane, node, policies, managedservices |
-| aks-1.8.0            | controlplane, node, policies, managedservices |
+| aks-1.8              | controlplane, node, policies, managedservices |
 | rh-0.7               | master,node|
 | rh-1.0               | master, controlplane, node, etcd, policies |
 | rh-1.4               | master, controlplane, node, etcd, policies |
 | rh-1.8               | master, controlplane, node, etcd, policies |
+| rh-1.9               | master, controlplane, node, etcd, policies |
 | cis-1.6-k3s          | master, controlplane, node, etcd, policies |
 | cis-1.24-microk8s    | master, controlplane, node, etcd, policies |
 

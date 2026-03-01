@@ -1,6 +1,6 @@
 ---
 controls:
-version: "aks-1.8.0"
+version: "aks-1.8"
 id: 4
 text: "Policies"
 type: "policies"
@@ -92,7 +92,7 @@ groups:
       - id: 4.1.4
         text: "Minimize access to create pods (Automated)"
         audit: |
-          echo "🔹 Roles and ClusterRoles with 'create' access on 'pods':"
+          echo "Roles and ClusterRoles with 'create' access on 'pods':"
           access=$(kubectl get roles,clusterroles -A -o json | jq '
             [.items[] |
               select(
@@ -111,13 +111,13 @@ groups:
         remediation: |
           Review all roles and clusterroles that have "create" permission on "pods".
 
-          🔒 Where possible, remove or restrict this permission to only required service accounts.
+          Where possible, remove or restrict this permission to only required service accounts.
 
-          🛠 Use:
+          Use the following commands to edit roles and clusterroles:
             - `kubectl edit role -n <namespace> <role>`
             - `kubectl edit clusterrole <name>`
 
-          ✅ Apply least privilege principle across the cluster.
+          Apply least privilege principle across the cluster.
         scored: true
 
 
@@ -168,13 +168,13 @@ groups:
         remediation: |
           Pods that do not need access to the Kubernetes API should not mount service account tokens.
 
-          ✅ To disable token mounting in a pod definition:
+          To disable token mounting in a pod definition:
           ```yaml
           spec:
             automountServiceAccountToken: false
           ```
 
-          ✅ Or patch an existing pod's spec (recommended via workload template):
+          Or patch an existing pod's spec (recommended via workload template):
           Patch not possible for running pods — update the deployment YAML or recreate pods with updated spec.
         scored: true
 
@@ -222,7 +222,7 @@ groups:
 
 
   - id: 4.2
-    text: "Pod Security Policies"
+    text: "Pod Security Standards"
     checks:
       - id: 4.2.1
         text: "Minimize the admission of privileged containers (Automated)"

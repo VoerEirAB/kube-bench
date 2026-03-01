@@ -1,6 +1,6 @@
 ---
 controls:
-version: rh-1.8
+version: rh-1.9
 id: 5
 text: "Policies"
 type: "policies"
@@ -15,7 +15,7 @@ groups:
           #To get a list of users and service accounts with the cluster-admin role
           oc get clusterrolebindings -o=customcolumns=NAME:.metadata.name,ROLE:.roleRef.name,SUBJECT:.subjects[*].kind |
           grep cluster-admin
-          #To verity that kbueadmin is removed, no results should be returned
+          #To verity that kubeadmin is removed, no results should be returned
           oc get secrets kubeadmin -n kube-system
         remediation: |
           Identify all clusterrolebindings to the cluster-admin role. Check if they are used and if they need this role or if they could use a role with fewer privileges.
@@ -456,7 +456,7 @@ groups:
         audit: |
           oc get image.config.openshift.io/cluster -o json | jq .spec.registrySources
         remediation: |
-          Follow the OpenShift documentation: [Image configuration resources](https://docs.openshift.com/container-platform/4.5/openshift_images/image-configuration.html
+          Follow the OpenShift documentation: [Image configuration resources](https://docs.openshift.com/container-platform/4.5/openshift_images/image-configuration.html)
         scored: false
 
   - id: 5.7

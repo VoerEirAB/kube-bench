@@ -1,6 +1,6 @@
 ---
 controls:
-version: rh-1.8
+version: rh-1.9
 id: 1
 text: "Master Node Security Configuration"
 type: "master"
@@ -135,7 +135,7 @@ groups:
         scored: true
 
       - id: 1.1.6
-        text: "Ensure that the scheduler pod specification file ownership is set to root:root (Manual))"
+        text: "Ensure that the scheduler pod specification file ownership is set to root:root (Manual)"
         audit: |
           # Get the node name where the pod is running
           NODE_NAME=$(oc get pod "$HOSTNAME" -o=jsonpath='{.spec.nodeName}')
@@ -317,7 +317,7 @@ groups:
         scored: true
 
       - id: 1.1.12
-        text: "Ensure that the etcd data directory ownership is set to etcd:etcd (Manual)"
+        text: "Ensure that the etcd data directory ownership is set to root:root (Manual)"
         audit: |
           # Get the node name where the pod is running
           NODE_NAME=$(oc get pod "$HOSTNAME" -o=jsonpath='{.spec.nodeName}')
@@ -761,6 +761,12 @@ groups:
           test_items:
             - flag: "AlwaysPullImages"
               set: false
+        impact: |
+          Credentials would be required to pull the private images every time. Also, in trusted environments,
+          this might increase load on network and registry and decrease speed. This setting could impact
+          offline or isolated clusters which have images pre-loaded and do not have access to a registry to
+          pull in-use images. This setting is not appropriate for clusters which use that configuration.
+          Page 82 Internal Only - General
         remediation: |
           None required.
         scored: true
@@ -1208,7 +1214,6 @@ groups:
           None required.
           Certificates for OpenShift platform components are automatically created and rotated by the OpenShift Container Platform.
         scored: true
-
 
   - id: 1.4
     text: "Scheduler"
