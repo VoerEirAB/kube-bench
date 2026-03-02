@@ -17,7 +17,7 @@ groups:
           oc get identity
           # To verify that a custom cluster-admin user exists
           oc get clusterrolebindings -o=custom-columns=NAME:.metadata.name,ROLE:.roleRef.name,SUBJECT:.subjects[*].kind | grep cluster-admin | grep User
-          # To verity that kbueadmin is removed, no results should be returned
+          # To verify that kubeadmin is removed, no results should be returned
           oc get secrets kubeadmin -n kube-system
         type: manual
         remediation: |
