@@ -96,14 +96,14 @@ groups:
       - id: 4.1.4
         text: "Ensure that default service accounts are not actively used (Automated)"
         audit: |
-          echo "🔹 Default Service Accounts with automountServiceAccountToken enabled:"
+          echo "Default Service Accounts with automountServiceAccountToken enabled:"
           default_sa_count=$(kubectl get serviceaccounts --all-namespaces -o json | jq '
             [.items[] | select(.metadata.name == "default" and (.automountServiceAccountToken != false))] | length')
           if [ "$default_sa_count" -gt 0 ]; then
             echo "default_sa_not_auto_mounted"
           fi
 
-          echo "\n🔹 Pods using default ServiceAccount:"
+          echo "\nPods using default ServiceAccount:"
           pods_using_default_sa=$(kubectl get pods --all-namespaces -o json | jq '
             [.items[] | select(.spec.serviceAccountName == "default")] | length')
           if [ "$pods_using_default_sa" -gt 0 ]; then
@@ -127,7 +127,7 @@ groups:
       - id: 4.1.5
         text: "Ensure that Service Account Tokens are only mounted where necessary (Automated)"
         audit: |
-          echo "🔹 Pods with automountServiceAccountToken enabled:"
+          echo "Pods with automountServiceAccountToken enabled:"
           pods_with_token_mount=$(kubectl get pods --all-namespaces -o json | jq '
             [.items[] | select(.spec.automountServiceAccountToken != false)] | length')
 

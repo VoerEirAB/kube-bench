@@ -943,8 +943,8 @@ groups:
             echo "fail (current=$VALUE)"
           fi
         tests:
-        test_items:
-          - flag: "pass"
+          test_items:
+            - flag: "pass"
         remediation: |
           No remediation required.
           By default, OpenShift retains 10 audit log backup files.
