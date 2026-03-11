@@ -1,7 +1,7 @@
 SOURCES := $(shell find . -name '*.go')
 BINARY := kube-bench
-DOCKER_ORG ?= aquasec
-VERSION ?= $(shell git rev-parse --short=7 HEAD)
+DOCKER_ORG ?= voereir
+VERSION ?= v0.15.0-T5.3.0
 KUBEBENCH_VERSION ?= $(shell git describe --tags --abbrev=0)
 IMAGE_NAME ?= $(DOCKER_ORG)/$(BINARY):$(VERSION)
 IMAGE_NAME_UBI ?= $(DOCKER_ORG)/$(BINARY):$(VERSION)-ubi
@@ -9,7 +9,7 @@ GOOS ?= linux
 BUILD_OS := linux
 uname := $(shell uname -s)
 BUILDX_PLATFORM ?= linux/amd64,linux/arm64,linux/arm,linux/ppc64le,linux/s390x
-DOCKER_ORGS ?= aquasec public.ecr.aws/aquasecurity
+DOCKER_ORGS ?= voereir
 GOARCH ?= $@
 KUBECTL_VERSION ?= 1.36.0-alpha.1
 ARCH ?= $(shell go env GOARCH)
@@ -91,7 +91,7 @@ kind-run: kind-push
 		kubectl delete job kube-bench
 	KUBECONFIG=$(KUBECONFIG) \
 		kubectl apply -f ./hack/kind.test.yaml && \
-		kubectl wait --for=condition=complete job.batch/kube-bench --timeout=60s && \
+		kubectl wait --for=condition=complete job.batch/kube-bench --timeout=120s && \
 		kubectl logs job/kube-bench > ./test.data && \
 		diff ./test.data integration/testdata/Expected_output.data
 
