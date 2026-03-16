@@ -469,7 +469,7 @@ groups:
                 RotateKubeletServerCertificate: true
         scored: true
 
-      - id: 4.2.13
+      - id: 4.2.12
         text: "Ensure that the Kubelet only makes use of Strong Cryptographic Ciphers (Manual)"
         audit: |
           # needs verification
