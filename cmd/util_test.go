@@ -679,119 +679,137 @@ func Test_getPlatformBenchmarkVersion(t *testing.T) {
 			want: "eks-1.8.0",
 		},
 		{
-			name: "eks 1.24",
-			args: args{
-				platform: Platform{Name: "eks", Version: "1.24"},
-			},
-			want: "eks-1.5.0",
+			name: "eks 1.33",
+			args: args{platform: Platform{Name: "eks", Version: "1.33"}},
+			want: "eks-1.8.0",
 		},
 		{
-			name: "gke 1.19",
-			args: args{
-				platform: Platform{Name: "gke", Version: "1.19"},
-			},
+			name: "eks-1.34",
+			args: args{platform: Platform{Name: "eks", Version: "1.34"}},
+			want: "eks-2.0.0",
+		},
+		{
+			name: "eks-1.35",
+			args: args{platform: Platform{Name: "eks", Version: "1.35"}},
+			want: "eks-2.0.0",
+		},
+		{
+			name: "eks-1.36",
+			args: args{platform: Platform{Name: "eks", Version: "1.36"}},
+			want: "eks-2.0.0",
+		},
+		{
+			name: "aks-1.27",
+			args: args{platform: Platform{Name: "aks", Version: "1.27"}},
+			want: "aks-1.8",
+		},
+		{
+			name: "gke-1.19",
+			args: args{platform: Platform{Name: "gke", Version: "1.19"}},
 			want: "gke-1.0",
 		},
 		{
-			name: "gke 1.20",
-			args: args{
-				platform: Platform{Name: "gke", Version: "1.20"},
-			},
+			name: "gke-1.20",
+			args: args{platform: Platform{Name: "gke", Version: "1.20"}},
 			want: "gke-1.2.0",
 		},
 		{
-			name: "gke 1.22",
-			args: args{
-				platform: Platform{Name: "gke", Version: "1.22"},
-			},
-			want: "gke-1.2.0",
-		},
-		{
-			name: "gke 1.28",
-			args: args{
-				platform: Platform{Name: "gke", Version: "1.28"},
-			},
+			name: "gke-1.28",
+			args: args{platform: Platform{Name: "gke", Version: "1.28"}},
 			want: "gke-1.6.0",
 		},
 		{
-			name: "gke 1.30",
-			args: args{
-				platform: Platform{Name: "gke", Version: "1.30"},
-			},
-			want: "gke-1.8.0",
+			name: "gke-1.29",
+			args: args{platform: Platform{Name: "gke", Version: "1.29"}},
+			want: "gke-1.6.0",
 		},
 		{
-			name: "gke 1.33",
-			args: args{
-				platform: Platform{Name: "gke", Version: "1.33"},
-			},
-			want: "gke-1.9.0",
+			name: "gke-1.30",
+			args: args{platform: Platform{Name: "gke", Version: "1.30"}},
+			want: "gke-2.0.0",
+		},
+		{
+			name: "gke-1.31",
+			args: args{platform: Platform{Name: "gke", Version: "1.31"}},
+			want: "gke-2.0.0",
+		},
+		{
+			name: "gke 1.32",
+			args: args{platform: Platform{Name: "gke", Version: "1.32"}},
+			want: "gke-2.0.0",
+		},
+		{
+			name: "gke-1.33",
+			args: args{platform: Platform{Name: "gke", Version: "1.33"}},
+			want: "gke-2.0.0",
+		},
+		{
+			name: "gke-1.34",
+			args: args{platform: Platform{Name: "gke", Version: "1.34"}},
+			want: "gke-2.0.0",
+		},
+		{
+			name: "gke-1.35",
+			args: args{platform: Platform{Name: "gke", Version: "1.35"}},
+			want: "gke-2.0.0",
+		},
+		{
+			name: "gke-1.36",
+			args: args{platform: Platform{Name: "gke", Version: "1.36"}},
+			want: "gke-2.0.0",
 		},
 		{
 			name: "aliyun",
-			args: args{
-				platform: Platform{Name: "aliyun"},
-			},
+			args: args{platform: Platform{Name: "aliyun"}},
 			want: "ack-1.0",
 		},
 		{
 			name: "unknown",
-			args: args{
-				platform: Platform{Name: "rh"},
-			},
+			args: args{platform: Platform{Name: "rh"}},
 			want: "",
 		},
 		{
 			name: "empty",
-			args: args{
-				platform: Platform{},
-			},
+			args: args{platform: Platform{}},
 			want: "",
 		},
 		{
-			name: "openshift3",
-			args: args{
-				platform: Platform{Name: "ocp", Version: "3.10"},
-			},
+			name: "ocp-3.10",
+			args: args{platform: Platform{Name: "ocp", Version: "3.10"}},
 			want: "rh-0.7",
 		},
 		{
-			name: "openshift4",
-			args: args{
-				platform: Platform{Name: "ocp", Version: "4.11"},
-			},
-			want: "rh-1.4",
-		},
-		{
-			name: "openshift4",
-			args: args{
-				platform: Platform{Name: "ocp", Version: "4.13"},
-			},
-			want: "rh-1.8",
-		},
-		{
-			name: "openshift4",
-			args: args{
-				platform: Platform{Name: "ocp", Version: "4.1"},
-			},
+			name: "ocp-4.1",
+			args: args{platform: Platform{Name: "ocp", Version: "4.1"}},
 			want: "rh-1.0",
 		},
 		{
-			name: "k3s 1.25",
-			args: args{
-				platform: Platform{Name: "k3s", Version: "1.25"},
-			},
-			want: "k3s-cis-1.7",
+			name: "ocp-4.11",
+			args: args{platform: Platform{Name: "ocp", Version: "4.11"}},
+			want: "rh-1.4",
 		},
 		{
-			name: "k3s 1.26",
-			args: args{
-				platform: Platform{Name: "k3s", Version: "1.26"},
-			},
-			want: "k3s-cis-1.8",
+			name: "ocp-4.13",
+			args: args{platform: Platform{Name: "ocp", Version: "4.13"}},
+			want: "rh-1.9",
 		},
 		{
-			name: "k3s 1.27",
+			name: "ocp-4.15",
+			args: args{platform: Platform{Name: "ocp", Version: "4.15"}},
+			want: "rh-1.9",
+		},
+		{
+			name: "ocp-4.17",
+			args: args{platform: Platform{Name: "ocp", Version: "4.17"}},
+			want: "rh-1.9",
+		},
+		{
+			name: "ocp-4.19",
+			args: args{platform: Platform{Name: "ocp", Version: "4.19"}},
+			want: "rh-1.9",
+		},
+		{
+			name: "k3s",
 			args: args{
 				platform: Platform{Name: "k3s", Version: "1.27"},
 			},
@@ -868,6 +886,11 @@ func Test_getOcpValidVersion(t *testing.T) {
 		{openShiftVersion: "4.1", succeed: true, exp: "4.1"},
 		{openShiftVersion: "4.5", succeed: true, exp: "4.1"},
 		{openShiftVersion: "4.6", succeed: true, exp: "4.1"},
+		{openShiftVersion: "4.11", succeed: true, exp: "4.11"},
+		{openShiftVersion: "4.13", succeed: true, exp: "4.13"},
+		{openShiftVersion: "4.15", succeed: true, exp: "4.15"},
+		{openShiftVersion: "4.17", succeed: true, exp: "4.17"},
+		{openShiftVersion: "4.19", succeed: true, exp: "4.19"},
 		{openShiftVersion: "invalid", succeed: false, exp: ""},
 	}
 	for _, c := range cases {

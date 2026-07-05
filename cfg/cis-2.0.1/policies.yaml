@@ -1,0 +1,524 @@
+---
+controls:
+version: "cis-2.0.1"
+id: 5
+text: "Kubernetes Policies"
+type: "policies"
+groups:
+  - id: 5.1
+    text: "RBAC and Service Accounts"
+    checks:
+      - id: 5.1.1
+        text: "Ensure that the cluster-admin role is only used where required (Manual)"
+        audit: |
+          kubectl get clusterrolebindings -o=custom-columns=NAME:.metadata.name,ROLE:.roleRef.name,SUBJECT:.subjects[*].name --no-headers | while read -r role_name role_binding subject
+          do
+            if [ "${role_name}" != "cluster-admin" ] && [ "${role_binding}" = "cluster-admin" ]; then
+              is_compliant="false"
+            else
+              is_compliant="true"
+            fi;
+            echo "**role_name: ${role_name} role_binding: ${role_binding} subject: ${subject} is_compliant: ${is_compliant}"
+          done
+        use_multiple_values: true
+        tests:
+          test_items:
+            - flag: "is_compliant"
+              compare:
+                op: eq
+                value: true
+        remediation: |
+          Identify all clusterrolebindings to the cluster-admin role. Check if they are used and
+          if they need this role or if they could use a role with fewer privileges.
+          Where possible, first bind users to a lower privileged role and then remove the
+          clusterrolebinding to the cluster-admin role : kubectl delete clusterrolebinding [name]
+          Condition: is_compliant is false if rolename is not cluster-admin and rolebinding is cluster-admin.
+        scored: false
+
+      - id: 5.1.2
+        text: "Minimize access to secrets (Manual)"
+        audit: "echo \"canGetListWatchSecretsAsSystemAuthenticated: $(kubectl auth can-i get,list,watch secrets --all-namespaces --as=system:authenticated)\""
+        tests:
+          test_items:
+            - flag: "canGetListWatchSecretsAsSystemAuthenticated"
+              compare:
+                op: eq
+                value: no
+        remediation: |
+          Where possible, remove get, list and watch access to Secret objects in the cluster.
+        scored: false
+
+      - id: 5.1.3
+        text: "Minimize wildcard use in Roles and ClusterRoles (Manual)"
+        audit: |
+          # Check Roles
+          kubectl get roles --all-namespaces -o custom-columns=ROLE_NAMESPACE:.metadata.namespace,ROLE_NAME:.metadata.name --no-headers | while read -r role_namespace role_name
+          do
+            role_rules=$(kubectl get role -n "${role_namespace}" "${role_name}" -o=json | jq -c '.rules')
+            if echo "${role_rules}" | grep -q "\[\"\*\"\]"; then
+              role_is_compliant="false"
+            else
+              role_is_compliant="true"
+            fi;
+            echo "**role_name: ${role_name} role_namespace: ${role_namespace} role_rules: ${role_rules} role_is_compliant: ${role_is_compliant}"
+          done
+
+          # Check ClusterRoles
+          kubectl get clusterroles -o custom-columns=CLUSTERROLE_NAME:.metadata.name --no-headers | while read -r clusterrole_name
+          do
+            clusterrole_rules=$(kubectl get clusterrole "${clusterrole_name}" -o=json | jq -c '.rules')
+            if echo "${clusterrole_rules}" | grep -q "\[\"\*\"\]"; then
+              clusterrole_is_compliant="false"
+            else
+              clusterrole_is_compliant="true"
+            fi;
+          echo "**clusterrole_name: ${clusterrole_name} clusterrole_rules: ${clusterrole_rules} clusterrole_is_compliant: ${clusterrole_is_compliant}"
+          done
+        use_multiple_values: true
+        tests:
+          bin_op: or
+          test_items:
+            - flag: "role_is_compliant"
+              compare:
+                op: eq
+                value: true
+              set: true
+            - flag: "clusterrole_is_compliant"
+              compare:
+                op: eq
+                value: true
+              set: true
+        remediation: |
+          Where possible replace any use of wildcards ["*"] in roles and clusterroles with specific
+          objects or actions.
+          Condition: role_is_compliant is false if ["*"] is found in rules.
+          Condition: clusterrole_is_compliant is false if ["*"] is found in rules.
+        scored: false
+
+      - id: 5.1.4
+        text: "Minimize access to create pods (Manual)"
+        audit: |
+          echo "canCreatePodsAsSystemAuthenticated: $(kubectl auth can-i create pods --all-namespaces --as=system:authenticated)"
+        tests:
+          test_items:
+            - flag: "canCreatePodsAsSystemAuthenticated"
+              compare:
+                op: eq
+                value: no
+        remediation: |
+          Where possible, remove create access to pod objects in the cluster.
+        scored: false
+
+      - id: 5.1.5
+        text: "Ensure that default service accounts are not actively used. (Manual)"
+        audit: |
+          # Check automountServiceAccountToken for default ServiceAccounts
+          kubectl get serviceaccount --all-namespaces --field-selector metadata.name=default -o=json | jq -r '.items[] | "namespace: \(.metadata.namespace), kind: \(.kind), name: \(.metadata.name), automountServiceAccountToken: \(.automountServiceAccountToken // \"notset\")"' | xargs -L1
+
+          # Check for RoleBindings referencing default ServiceAccounts
+          kubectl get rolebindings --all-namespaces -o json | jq -r '
+            .items[] as $rb |
+            $rb.subjects[]? |
+            select(.kind=="ServiceAccount" and .name=="default") |
+            "namespace: \($rb.metadata.namespace), rolebinding: \($rb.metadata.name), hasExtraRoleBinding: true"
+          '
+
+          # Check for ClusterRoleBindings referencing default ServiceAccounts
+          kubectl get clusterrolebindings -o json | jq -r '
+            .items[] as $crb |
+             $crb.subjects[]? |
+            select(.kind=="ServiceAccount" and .name=="default") |
+            "namespace: \(.namespace), clusterrolebinding: \($crb.metadata.name), hasExtraClusterRoleBinding: true"
+          '
+        use_multiple_values: true
+        tests:
+          test_items:
+            - flag: "automountServiceAccountToken"
+              compare:
+                op: eq
+                value: false
+              set: true
+        remediation: |
+          Create explicit service accounts wherever a Kubernetes workload requires
+          specific access to the Kubernetes API server.
+          Modify each default ServiceAccount to include:
+            automountServiceAccountToken: false
+          Also ensure that the default ServiceAccount has no non-default
+          RoleBindings or ClusterRoleBindings associated with it.
+        scored: false
+
+      - id: 5.1.6
+        text: "Ensure that Service Account Tokens are only mounted where necessary (Manual)"
+        audit: |
+          kubectl get pods --all-namespaces -o custom-columns=POD_NAMESPACE:.metadata.namespace,POD_NAME:.metadata.name,POD_SERVICE_ACCOUNT:.spec.serviceAccount,POD_IS_AUTOMOUNTSERVICEACCOUNTTOKEN:.spec.automountServiceAccountToken --no-headers | while read -r pod_namespace pod_name pod_service_account pod_is_automountserviceaccounttoken
+          do
+            # Retrieve automountServiceAccountToken's value for ServiceAccount and Pod, set to notset if null or <none>.
+            svacc_is_automountserviceaccounttoken=$(kubectl get serviceaccount -n "${pod_namespace}" "${pod_service_account}" -o json | jq -r '.automountServiceAccountToken' | sed -e 's/<none>/notset/g' -e 's/null/notset/g')
+            pod_is_automountserviceaccounttoken=$(echo "${pod_is_automountserviceaccounttoken}" | sed -e 's/<none>/notset/g' -e 's/null/notset/g')
+            if [ "${svacc_is_automountserviceaccounttoken}" = "false" ] && ( [ "${pod_is_automountserviceaccounttoken}" = "false" ] || [ "${pod_is_automountserviceaccounttoken}" = "notset" ] ); then
+              is_compliant="true"
+            elif [ "${svacc_is_automountserviceaccounttoken}" = "true" ] && [ "${pod_is_automountserviceaccounttoken}" = "false" ]; then
+              is_compliant="true"
+            else
+              is_compliant="false"
+            fi
+            echo "**namespace: ${pod_namespace} pod_name: ${pod_name} service_account: ${pod_service_account} pod_is_automountserviceaccounttoken: ${pod_is_automountserviceaccounttoken} svacc_is_automountServiceAccountToken: ${svacc_is_automountserviceaccounttoken} is_compliant: ${is_compliant}"
+          done
+        use_multiple_values: true
+        tests:
+          test_items:
+            - flag: "is_compliant"
+              compare:
+                op: eq
+                value: true
+        remediation: |
+          Modify the definition of ServiceAccounts and Pods which do not need to mount service
+          account tokens to disable it, with `automountServiceAccountToken: false`.
+          If both the ServiceAccount and the Pod's .spec specify a value for automountServiceAccountToken, the Pod spec takes precedence.
+          Condition: Pod is_compliant to true when
+            - ServiceAccount is automountServiceAccountToken: false and Pod is automountServiceAccountToken: false or notset
+            - ServiceAccount is automountServiceAccountToken: true notset and Pod is automountServiceAccountToken: false
+        scored: false
+
+      - id: 5.1.7
+        text: 'Avoid use of system:masters group (Manual)'
+        type: "manual"
+        impact: "Once the RBAC system is operational in a cluster system:masters should not be specifically required, as ordinary bindings from principals to the cluster-admin cluster role can be made where unrestricted access is required."
+        remediation: |
+          The system:masters group has unrestricted access to the Kubernetes API hard-coded into the API server source code. An authenticated user who is a member of this group cannot have their access reduced, even if all bindings and cluster role bindings which mention it, are removed. When combined with client certificate authentication, use of this group can allow for irrevocable cluster-admin level credentials to exist for a cluster.
+        scored: false
+
+      - id: 5.1.8
+        text: 'Limit use of the Bind, Impersonate and Escalate permissions in the Kubernetes cluster (Manual)'
+        type: "manual"
+        impact: "There are some cases where these permissions are required for cluster service operation, and care should be taken before removing these permissions from system service accounts."
+        remediation: |
+          The impersonate privilege allows a subject to impersonate other users gaining their rights to the cluster. The bind privilege allows the subject to add a binding to a cluster role or role which escalates their effective permissions in the cluster. The escalate privilege allows a subject to modify cluster roles to which they are bound, increasing their rights to that level. Each of these permissions has the potential to allow for privilege escalation to cluster- admin level.
+        scored: false
+
+      - id: 5.1.9
+        text: "Minimize access to create persistent volumes (Manual)"
+        type: "manual"
+        remediation: |
+          The ability to create persistent volumes in a cluster opens up possibilities for privilege escalation and should be restricted, where possible.
+        scored: false
+
+      - id: 5.1.10
+        text: "Minimize access to the proxy sub-resource of nodes (Manual)"
+        type: "manual"
+        remediation: |
+          The ability to use the proxy sub-resource of node objects opens up possibilities for privilege escalation and should be restricted, where possible.
+        scored: false
+
+      - id: 5.1.11
+        text: "Minimize access to the approval sub-resource of certificatesigningrequests objects (Manual)"
+        type: "manual"
+        remediation: |
+          The ability to update certificate signing requests should be limited.
+        scored: false
+
+      - id: 5.1.12
+        text: "Minimize access to webhook configuration objects (Manual)"
+        type: "manual"
+        remediation: |
+          The ability to manage webhook configuration should be limited
+        scored: false
+
+      - id: 5.1.13
+        text: "Minimize access to the service account token creation (Manual)"
+        type: "manual"
+        remediation: |
+          The ability to create service account tokens should be limited.
+        scored: false
+
+  - id: 5.2
+    text: "Pod Security Standards"
+    checks:
+      - id: 5.2.1
+        text: "Ensure that the cluster has at least one active policy control mechanism in place (Manual)"
+        type: "manual"
+        impact: "Where policy control systems are in place, there is a risk that workloads required for the operation of the cluster may be stopped from running. Care is required when implementing admission control policies to ensure that this does not occur."
+        remediation: |
+          Without an active policy control mechanism, it is not possible to limit the use of containers with access to underlying cluster nodes, via mechanisms like privileged containers, or the use of hostPath volume mounts.
+        scored: false
+
+      - id: 5.2.2
+        text: "Minimize the admission of privileged containers (Manual)"
+        audit: |
+          kubectl get pods --all-namespaces -o custom-columns=POD_NAME:.metadata.name,POD_NAMESPACE:.metadata.namespace --no-headers | while read -r pod_name pod_namespace
+          do
+            # Retrieve container(s) for each Pod.
+            kubectl get pod "${pod_name}" --namespace "${pod_namespace}" -o json | jq -c '.spec.containers[]' | while read -r container
+            do
+              # Retrieve container's name.
+              container_name=$(echo ${container} | jq -r '.name')
+              # Retrieve container's .securityContext.privileged value.
+              container_privileged=$(echo ${container} | jq -r '.securityContext.privileged' | sed -e 's/null/notset/g')
+              if [ "${container_privileged}" = "false" ] || [ "${container_privileged}" = "notset" ] ; then
+                echo "***pod_name: ${pod_name} container_name: ${container_name} pod_namespace: ${pod_namespace} is_container_privileged: ${container_privileged} is_compliant: true"
+              else
+                echo "***pod_name: ${pod_name} container_name: ${container_name} pod_namespace: ${pod_namespace} is_container_privileged: ${container_privileged} is_compliant: false"
+              fi
+            done
+          done
+        use_multiple_values: true
+        tests:
+          test_items:
+            - flag: "is_compliant"
+              compare:
+                op: eq
+                value: true
+        impact: "Pods defined with spec.containers[].securityContext.privileged: true, spec.initContainers[].securityContext.privileged: true and spec.ephemeralContainers[].securityContext.privileged: true will not be permitted."
+        remediation: |
+          Privileged containers have access to all Linux Kernel capabilities and devices. A container running with full privileges can do almost everything that the host can do. This flag exists to allow special use-cases, like manipulating the network stack and accessing devices. There should be at least one admission control policy defined which does not permit privileged containers. If you need to run privileged containers, this should be defined in a separate policy and you should carefully check to ensure that only limited service accounts and users are given permission to use that policy.
+        scored: false
+
+      - id: 5.2.3
+        text: "Minimize the admission of containers wishing to share the host process ID namespace (Manual)"
+        audit: |
+          kubectl get pods --all-namespaces -o custom-columns=POD_NAME:.metadata.name,POD_NAMESPACE:.metadata.namespace --no-headers | while read -r pod_name pod_namespace
+          do
+            # Retrieve spec.hostPID for each pod.
+            pod_hostpid=$(kubectl get pod "${pod_name}" --namespace "${pod_namespace}" -o jsonpath='{.spec.hostPID}' 2>/dev/null)
+            if [ -z "${pod_hostpid}" ]; then
+              pod_hostpid="false"
+              echo "***pod_name: ${pod_name} pod_namespace: ${pod_namespace} is_pod_hostpid: ${pod_hostpid} is_compliant: true"
+            else
+              echo "***pod_name: ${pod_name} pod_namespace: ${pod_namespace} is_pod_hostpid: ${pod_hostpid} is_compliant: false"
+            fi
+          done
+        use_multiple_values: true
+        tests:
+          test_items:
+            - flag: "is_compliant"
+              compare:
+                op: eq
+                value: true
+        impact: "Pods defined with spec.hostPID: true will not be permitted unless they are run under a specific policy."
+        remediation: |
+          A container running in the host's PID namespace can inspect processes running outside the container. If the container also has access to ptrace capabilities this can be used to escalate privileges outside of the container. There should be at least one admission control policy defined which does not permit containers to share the host PID namespace. If you need to run containers which require hostPID, this should be defined in a separate policy and you should carefully check to ensure that only limited service accounts and users are given permission to use that policy.
+        scored: false
+
+      - id: 5.2.4
+        text: "Minimize the admission of containers wishing to share the host IPC namespace (Manual)"
+        audit: |
+          kubectl get pods --all-namespaces -o custom-columns=POD_NAME:.metadata.name,POD_NAMESPACE:.metadata.namespace --no-headers | while read -r pod_name pod_namespace
+          do
+            # Retrieve spec.hostIPC for each pod.
+            pod_hostipc=$(kubectl get pod "${pod_name}" --namespace "${pod_namespace}" -o jsonpath='{.spec.hostIPC}' 2>/dev/null)
+            if [ -z "${pod_hostipc}" ]; then
+              pod_hostipc="false"
+              echo "***pod_name: ${pod_name} pod_namespace: ${pod_namespace} is_pod_hostipc: ${pod_hostipc} is_compliant: true"
+            else
+              echo "***pod_name: ${pod_name} pod_namespace: ${pod_namespace} is_pod_hostipc: ${pod_hostipc} is_compliant: false"
+            fi
+          done
+        use_multiple_values: true
+        tests:
+          test_items:
+            - flag: "is_compliant"
+              compare:
+                op: eq
+                value: true
+        impact: "Pods defined with spec.hostIPC: true will not be permitted unless they are run under a specific policy."
+        remediation: |
+          A container running in the host's IPC namespace can use IPC to interact with processes outside the container. There should be at least one admission control policy defined which does not permit containers to share the host IPC namespace. If you need to run containers which require hostIPC, this should be defined in a separate policy and you should carefully check to ensure that only limited service accounts and users are given permission to use that policy.
+        scored: false
+
+      - id: 5.2.5
+        text: "Minimize the admission of containers wishing to share the host network namespace (Manual)"
+        audit: |
+          kubectl get pods --all-namespaces -o custom-columns=POD_NAME:.metadata.name,POD_NAMESPACE:.metadata.namespace --no-headers | while read -r pod_name pod_namespace
+          do
+            # Retrieve spec.hostNetwork for each pod.
+            pod_hostnetwork=$(kubectl get pod "${pod_name}" --namespace "${pod_namespace}" -o jsonpath='{.spec.hostNetwork}' 2>/dev/null)
+            if [ -z "${pod_hostnetwork}" ]; then
+              pod_hostnetwork="false"
+              echo "***pod_name: ${pod_name} pod_namespace: ${pod_namespace} is_pod_hostnetwork: ${pod_hostnetwork} is_compliant: true"
+            else
+              echo "***pod_name: ${pod_name} pod_namespace: ${pod_namespace} is_pod_hostnetwork: ${pod_hostnetwork} is_compliant: false"
+            fi
+          done
+        use_multiple_values: true
+        tests:
+          test_items:
+            - flag: "is_compliant"
+              compare:
+                op: eq
+                value: true
+        impact: "Pods defined with spec.host"
+        remediation: |
+          A container running in the host's network namespace could access the local loopback device, and could access network traffic to and from other pods. There should be at least one admission control policy defined which does not permit containers to share the host network namespace. If you need to run containers which require access to the host's network namespaces, this should be defined in a separate policy and you should carefully check to ensure that only limited service accounts and users are given permission to use that policy.
+        scored: false
+
+      - id: 5.2.6
+        text: "Minimize the admission of containers with allowPrivilegeEscalation (Manual)"
+        audit: |
+          kubectl get pods --all-namespaces -o custom-columns=POD_NAME:.metadata.name,POD_NAMESPACE:.metadata.namespace --no-headers | while read -r pod_name pod_namespace
+          do
+            # Retrieve container(s) for each Pod.
+            kubectl get pod "${pod_name}" --namespace "${pod_namespace}" -o json | jq -c '.spec.containers[]' | while read -r container
+            do
+              # Retrieve container's name
+              container_name=$(echo ${container} | jq -r '.name')
+              # Retrieve container's .securityContext.allowPrivilegeEscalation
+              container_allowprivesc=$(echo ${container} | jq -r '.securityContext.allowPrivilegeEscalation' | sed -e 's/null/notset/g')
+              if [ "${container_allowprivesc}" = "false" ] || [ "${container_allowprivesc}" = "notset" ]; then
+                echo "***pod_name: ${pod_name} container_name: ${container_name} pod_namespace: ${pod_namespace} is_container_allowprivesc: ${container_allowprivesc} is_compliant: true"
+              else
+                echo "***pod_name: ${pod_name} container_name: ${container_name} pod_namespace: ${pod_namespace} is_container_allowprivesc: ${container_allowprivesc} is_compliant: false"
+              fi
+            done
+          done
+        use_multiple_values: true
+        tests:
+          test_items:
+            - flag: "is_compliant"
+              compare:
+                op: eq
+                value: true
+        impact: "Pods defined with security"
+        remediation: |
+          A container running with the allowPrivilegeEscalation flag set to true may have processes that can gain more privileges than their parent. There should be at least one admission control policy defined which does not permit containers to allow privilege escalation. The option exists (and is defaulted to true) to permit setuid binaries to run. If you have need to run containers which use setuid binaries or require privilege escalation, this should be defined in a separate policy and you should carefully check to ensure that only limited service accounts and users are given permission to use that policy.
+        scored: false
+
+      - id: 5.2.7
+        text: "Minimize the admission of root containers (Manual)"
+        type: "manual"
+        impact: "Pods with containers which run as the root user will not be permitted."
+        remediation: |
+          Containers may run as any Linux user. Containers which run as the root user, whilst constrained by Container Runtime security features still have a escalated likelihood of container breakout. Ideally, all containers should run as a defined non-UID 0 user. There should be at least one admission control policy defined which does not permit root containers. If you need to run root containers, this should be defined in a separate policy and you should carefully check to ensure that only limited service accounts and users are given permission to use that policy.
+        scored: false
+
+      - id: 5.2.8
+        text: "Minimize the admission of containers with the NET_RAW capability (Manual)"
+        type: "manual"
+        impact: "Pods with containers which run with the NET_RAW capability will not be permitted."
+        remediation: |
+          Containers run with a default set of capabilities as assigned by the Container Runtime. By default this can include potentially dangerous capabilities. With Docker as the container runtime the NET_RAW capability is enabled which may be misused by malicious containers. Ideally, all containers should drop this capability. There should be at least one admission control policy defined which does not permit containers with the NET_RAW capability. If you need to run containers with this capability, this should be defined in a separate policy and you should carefully check to ensure that only limited service accounts and users are given permission to use that policy.
+        scored: false
+
+      - id: 5.2.9
+        text: "Minimize the admission of containers with capabilities assigned (Manual)"
+        type: "manual"
+        impact: "Pods with containers require capabilities to operate will not be permitted."
+        remediation: |
+          Containers run with a default set of capabilities as assigned by the Container Runtime. Capabilities are parts of the rights generally granted on a Linux system to the root user. In many cases applications running in containers do not require any capabilities to operate, so from the perspective of the principal of least privilege use of capabilities should be minimized.
+        scored: false
+
+      - id: 5.2.10
+        text: "Minimize the admission of Windows HostProcess Containers (Manual)"
+        type: "manual"
+        remediation: |
+          Add policies to each namespace in the cluster which has user workloads
+          to restrict the admission of hostProcess containers.
+
+          If Windows HostProcess containers are required, define a separate policy
+          for them and ensure that only limited users and service accounts are
+          permitted to use that policy.
+        scored: false
+
+      - id: 5.2.11
+        text: "Minimize the admission of HostPath volumes (Manual)"
+        type: "manual"
+        impact: "Pods defined which make use of hostPath volumes will not be permitted unless they are run under a specific policy."
+        remediation: |
+          A container which mounts a hostPath volume as part of its specification will have access to the filesystem of the underlying cluster node. The use of hostPath volumes may allow containers access to privileged areas of the node filesystem. There should be at least one admission control policy defined which does not permit containers to mount hostPath volumes. If you need to run containers which require hostPath volumes, this should be defined in a separate policy and you should carefully check to ensure that only limited service accounts and users are given permission to use that policy.
+        scored: false
+
+      - id: 5.2.12
+        text: "Minimize the admission of containers which use HostPorts (Manual)"
+        type: "manual"
+        impact: "Pods defined with hostPort settings in either the container, initContainer or ephemeralContainer sections will not be permitted unless they are run under a specific policy."
+        remediation: |
+          Host ports connect containers directly to the host's network. This can bypass controls such as network policy. There should be at least one admission control policy defined which does not permit containers which require the use of HostPorts. If you need to run containers which require HostPorts, this should be defined in a separate policy and you should carefully check to ensure that only limited service accounts and users are given permission to use that policy.
+        scored: false
+
+  - id: 5.3
+    text: "Network Policies and CNI"
+    checks:
+      - id: 5.3.1
+        text: "Ensure that the CNI in use supports Network Policies (Manual)"
+        type: "manual"
+        remediation: |
+          If the CNI plugin in use does not support Network Policies,
+          consider using a different CNI plugin or an alternate mechanism
+          for restricting traffic in the Kubernetes cluster.
+        scored: false
+
+      - id: 5.3.2
+        text: "Ensure that all Namespaces have Network Policies defined (Manual)"
+        type: "manual"
+        remediation: |
+          Follow the Kubernetes documentation and create NetworkPolicy
+          objects as required for each namespace.
+        scored: false
+
+  - id: 5.4
+    text: "Secrets Management"
+    checks:
+      - id: 5.4.1
+        text: "Prefer using secrets as files over secrets as environment variables (Manual)"
+        type: "manual"
+        remediation: |
+          If possible, rewrite application code to read Secrets from mounted secret files, rather than
+          from environment variables.
+        scored: false
+
+      - id: 5.4.2
+        text: "Consider external secret storage (Manual)"
+        type: "manual"
+        remediation: |
+          Kubernetes supports secrets as first-class objects, but care needs to be taken to ensure that access to secrets is carefully limited. Using an external secrets provider can ease the management of access to secrets, especially where secrets are used across both Kubernetes and non-Kubernetes environments.
+        scored: false
+
+  - id: 5.5
+    text: "Extensible Admission Control"
+    checks:
+      - id: 5.5.1
+        text: "Configure Image Provenance using ImagePolicyWebhook admission controller (Manual)"
+        type: "manual"
+        impact: "You need to regularly maintain your provenance configuration based on container image updates."
+        remediation: |
+          Kubernetes supports plugging in provenance rules to accept or reject the images in your deployments. You could configure such rules to ensure that only approved images are deployed in the cluster.
+        scored: false
+
+  - id: 5.6
+    text: "General Policies"
+    checks:
+      - id: 5.6.1
+        text: "Create administrative boundaries between resources using namespaces (Manual)"
+        type: "manual"
+        impact: "You need to switch between namespaces for administration."
+        remediation: |
+          Limiting the scope of user permissions can reduce the impact of mistakes or malicious activities. A Kubernetes namespace allows you to partition created resources into logically named groups. Resources created in one namespace can be hidden from other namespaces. By default, each resource created by a user in Kubernetes cluster runs in a default namespace, called default. You can create additional namespaces and attach resources and users to them. You can use Kubernetes Authorization plugins to create policies that segregate access to namespace resources between different users.
+        scored: false
+
+      - id: 5.6.2
+        text: "Ensure that the seccomp profile is set to docker/default in your pod definitions (Manual)"
+        type: "manual"
+        remediation: |
+          Use `securityContext` to enable the `docker/default` seccomp profile in
+          your pod definitions.
+          Example:
+            securityContext:
+              seccompProfile:
+                type: RuntimeDefault
+        scored: false
+
+      - id: 5.6.3
+        text: "Apply Security Context to Your Pods and Containers (Manual)"
+        type: "manual"
+        remediation: |
+          Follow the Kubernetes documentation and apply SecurityContexts to
+          your Pods and Containers.
+          For a suggested list of SecurityContexts, refer to the CIS Security
+          Benchmark for Docker Containers.
+        scored: false
+
+      - id: 5.6.4
+        text: "The default namespace should not be used (Manual)"
+        type: "manual"
+        remediation: |
+          Resources in a Kubernetes cluster should be segregated by namespace, to allow for security controls to be applied at that level and to make it easier to manage resources.
+        scored: false

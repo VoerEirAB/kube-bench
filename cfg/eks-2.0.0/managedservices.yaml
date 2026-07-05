@@ -1,0 +1,245 @@
+---
+controls:
+version: "eks-2.0.0"
+id: 5
+text: "Managed Services"
+type: "managedservices"
+groups:
+  - id: 5.1
+    text: "Image Registry and Image Scanning"
+    checks:
+      - id: 5.1.1
+        text: "Ensure Image Vulnerability Scanning using Amazon ECR image scanning or a third party provider (Manual)"
+        type: "manual"
+        remediation: |
+          To utilize AWS ECR for Image scanning please follow the steps below:
+
+          To create a repository configured for scan on push (AWS CLI):
+          aws ecr create-repository --repository-name $REPO_NAME --image-scanning-configuration scanOnPush=true --region $REGION_CODE
+
+          To edit the settings of an existing repository (AWS CLI):
+          aws ecr put-image-scanning-configuration --repository-name $REPO_NAME --image-scanning-configuration scanOnPush=true --region $REGION_CODE
+
+          Use the following steps to start a manual image scan using the AWS Management Console.
+
+          1.  Open the Amazon ECR console at https://console.aws.amazon.com/ecr/repositories.
+          2.  From the navigation bar, choose the Region to create your repository in.
+          3.  In the navigation pane, choose Repositories.
+          4.  On the Repositories page, choose the repository that contains the image to scan.
+          5.  On the Images page, select the image to scan and then choose Scan.
+        scored: false
+
+      - id: 5.1.2
+        text: "Ensure least-privilege access is enforced for Amazon ECR repositories used by EKS workloads (Manual)"
+        type: manual
+        audit: |
+          aws ecr get-repository-policy \
+            --repository-name "${REPO_NAME}" \
+            --region "${REGION_CODE}"
+
+          aws iam list-attached-role-policies \
+            --role-name "${ROLE_NAME}"
+        remediation: |
+          Limit Amazon ECR access using least-privilege IAM and repository policies.
+          Grant node and Fargate roles only the permissions required to pull images,
+          and restrict push and administrative access to approved identities and
+          repositories.
+        scored: false
+
+      - id: 5.1.3
+        text: "Restrict ECR access for EKS runtime identities to pull-only permissions (Manual)"
+        type: manual
+        audit: |
+          aws iam list-attached-role-policies \
+            --role-name "${ROLE_NAME}"
+          aws ecr get-repository-policy \
+            --repository-name "${REPO_NAME}" \
+            --region "${REGION_CODE}"
+        remediation: |
+          Restrict EKS worker node and Fargate pod execution roles to pull-only ECR
+          permissions. Use the AmazonEC2ContainerRegistryPullOnly managed policy or
+          an equivalent custom policy. Remove unnecessary read, push, delete, and
+          administrative ECR permissions from runtime identities.
+        scored: false
+
+      - id: 5.1.4
+        text: "Allow only approved container registries for images used by EKS workloads (Manual)"
+        type: "manual"
+        remediation: |
+          Restrict EKS workloads to approved container registries by enforcing image-source
+          validation at admission time rather than relying only on CI/CD or documented
+          standards.
+          Recommended actions:
+          1. Define an allowlist of approved container registries, including:
+            - Internal Amazon ECR repositories
+            - Approved third-party registries (if required)
+            - Region-specific Amazon ECR registries used by EKS platform components
+              such as kube-proxy, CoreDNS, and aws-node.
+          2. Configure an admission controller such as Kyverno or OPA Gatekeeper to
+            validate image registry sources before workloads are admitted.
+          3. Apply the policy to workload namespaces while allowing required system
+            namespaces and approved operational exceptions.
+          4. Where stronger supply chain security is required, configure image signature
+            verification using Notation trust policies and trusted publishers.
+          5. Verify that:
+            - Images from approved registries are successfully admitted.
+            - Images from unapproved registries are rejected.
+            - The allowlist is reviewed and updated whenever new trusted registries or
+              EKS add-ons are introduced.
+        scored: false
+
+  - id: 5.2
+    text: "Identity and Access Management (IAM)"
+    checks:
+      - id: 5.2.1
+        text: "Prefer using dedicated EKS Service Accounts (Automated)"
+        remediation: |
+          Use dedicated Kubernetes ServiceAccounts for EKS workloads instead of relying
+          on the namespace default ServiceAccount.
+          1. Create a dedicated Kubernetes ServiceAccount for each application or
+            distinct AWS permission boundary instead of sharing the namespace
+            default ServiceAccount.
+          2. Associate each ServiceAccount with a least-privilege IAM role by using
+            EKS Pod Identity where supported, or IAM Roles for Service Accounts
+            (IRSA) where Pod Identity is not supported or specifically required.
+          3. Update workload manifests to explicitly specify the intended
+            ServiceAccount using:
+              spec:
+                serviceAccountName: <service-account-name>
+          4. Set automountServiceAccountToken: false for Pods or
+            ServiceAccounts that do not require Kubernetes API access.
+          5. Restrict worker node instance profile (IMDS) access so workloads
+            cannot inherit broader node IAM credentials after migrating to
+            ServiceAccount-based identities.
+          Using dedicated ServiceAccounts with EKS Pod Identity or IRSA provides:
+            - Least-privilege AWS permissions
+            - Credential isolation between workloads
+            - Improved auditing through AWS CloudTrail
+            - Reduced dependency on broad worker node IAM roles.
+        scored: false
+
+  - id: 5.3
+    text: "AWS EKS Key Management Service"
+    checks:
+      - id: 5.3.1
+        text: "Use customer managed KMS keys for EKS envelope encryption of Kubernetes secrets (Manual)"
+        type: "manual"
+        remediation: |
+          Configure the EKS cluster to use a customer managed AWS KMS key for envelope
+          encryption of Kubernetes Secrets.
+          Create or identify an existing symmetric customer managed KMS key in the same
+          AWS Region as the EKS cluster, then associate it with the cluster:
+          aws eks associate-encryption-config \
+            --cluster-name "${CLUSTER_NAME}" \
+            --region "${REGION_CODE}" \
+            --encryption-config \
+            "[{\"resources\":[\"secrets\"],\"provider\":{\"keyArn\":\"${KEY_ARN}\"}}]"
+          Wait for the cluster update to complete, then verify that the cluster
+          encryption configuration contains the expected customer managed KMS key:
+          aws eks describe-cluster \
+            --name "${CLUSTER_NAME}" \
+            --region "${REGION_CODE}" \
+            --query "cluster.encryptionConfig"
+          Ensure the associated KMS key remains enabled and accessible. Do not disable
+          or delete the key while it is associated with the cluster.
+        scored: false
+
+  - id: 5.4
+    text: "Cluster Networking"
+    checks:
+      - id: 5.4.1
+        text: "Restrict EKS control plane endpoint access with private access and public CIDR allowlists (Automated)"
+        remediation: |
+          Enable private endpoint access to the Kubernetes API server so communication
+          between worker nodes and the control plane stays within the VPC.
+          If the public endpoint remains enabled, restrict it to trusted source CIDR
+          ranges instead of allowing unrestricted access (0.0.0.0/0).
+          Example:
+          aws eks update-cluster-config \
+            --name "${CLUSTER_NAME}" \
+            --region "${REGION_CODE}" \
+            --resources-vpc-config \
+            endpointPrivateAccess=true,endpointPublicAccess=true,publicAccessCidrs="203.0.113.5/32"
+          Ensure that:
+          - endpointPrivateAccess is enabled.
+          - endpointPublicAccess is enabled only when required.
+          - publicAccessCidrs contains only approved administrator or management
+            network CIDRs.
+          - Required node or NAT gateway egress IP addresses are included if worker
+            nodes access the public API endpoint.
+          Do not leave publicAccessCidrs configured as 0.0.0.0/0 unless explicitly
+          required.
+        scored: false
+
+      - id: 5.4.2
+        text: "Enable private-only EKS control plane access and disable the public endpoint (Automated)"
+        remediation: |
+          Configure the EKS cluster so the Kubernetes API server is accessible only
+          through the private endpoint.
+          Example:
+          aws eks update-cluster-config \
+            --name "${CLUSTER_NAME}" \
+            --region "${REGION_CODE}" \
+            --resources-vpc-config \
+            endpointPrivateAccess=true,endpointPublicAccess=false
+          Ensure administrators access the cluster through private connectivity such
+          as VPN, AWS Direct Connect, Transit Gateway, or another approved private
+          network path.
+        scored: false
+
+      - id: 5.4.3
+        text: "Ensure clusters are created with Private Nodes (Manual)"
+        type: "manual"
+        remediation: |
+          Deploy worker nodes only into private subnets.
+          For existing clusters using public subnets:
+          - Create a new managed node group using only private subnet IDs.
+          - Ensure the private subnets do not automatically assign public IPv4
+            addresses.
+          - Ensure subnet route tables do not contain a default route (0.0.0.0/0)
+            directly to an Internet Gateway.
+          - Provide outbound connectivity through a NAT Gateway or required VPC
+            endpoints (for example ECR API, ECR DKR, S3, STS, and other required AWS
+            services).
+          - If launch templates are used, verify they do not assign public IP
+            addresses.
+          - Cordon and drain workloads from the existing public node group.
+          - Migrate workloads to the new private node group.
+          - Delete the original public node group after migration is complete.
+        scored: false
+
+      - id: 5.4.4
+        text: "Use TLS certificates on EKS load balancer listeners for encrypted client connections (Manual)"
+        type: "manual"
+        remediation: |
+          Configure every client-facing EKS load balancer listener to use HTTPS or TLS
+          with a valid ACM certificate.
+          For Network Load Balancers (NLB):
+          - Configure aws-load-balancer-ssl-cert with the ACM certificate ARN.
+          - Configure aws-load-balancer-ssl-ports for all TLS listener ports.
+          For Application Load Balancers (ALB):
+          - Configure HTTPS listeners.
+          - Associate the required ACM certificate ARN with the HTTPS listener.
+          Renew or replace expired certificates as required.
+          Where end-to-end encryption is required, configure backend TLS between the
+          load balancer and application Pods in addition to listener TLS.
+        scored: false
+
+  - id: 5.5
+    text: "Authentication and Authorization"
+    checks:
+      - id: 5.5.1
+        text: "Use EKS access entries to manage IAM principal access to Kubernetes (Automated)"
+        remediation: |
+          Configure the cluster to use EKS access entries for IAM principal access management,
+          then create and scope access entries for each required IAM role or user.
+          Update the cluster authentication mode to API_AND_CONFIG_MAP:
+          aws eks update-cluster-config \
+            --name $CLUSTER_NAME \
+            --region $REGION_CODE \
+            --access-config authenticationMode=API_AND_CONFIG_MAP
+          - Create an access entry for each IAM principal that requires Kubernetes access.
+          - Associate the required EKS access policies or Kubernetes RBAC groups with each access entry.
+          - Scope access to specific namespaces wherever possible.
+          - After validating access through EKS access entries, remove unnecessary legacy aws-auth ConfigMap mappings.
+        scored: false

@@ -1,0 +1,819 @@
+---
+controls:
+version: "cis-2.0.1"
+id: 1
+text: "Control Plane Security Configuration"
+type: "master"
+groups:
+  - id: 1.1
+    text: "Control Plane Node Configuration Files"
+    checks:
+      - id: 1.1.1
+        text: "Ensure that the API server pod specification file permissions are set to 600 or more restrictive (Automated)"
+        audit: "/bin/sh -c 'if test -e $apiserverconf; then stat -c permissions=%a $apiserverconf; fi'"
+        tests:
+          test_items:
+            - flag: "permissions"
+              compare:
+                op: bitmask
+                value: "600"
+        remediation: |
+          The API server pod specification file controls various parameters that set the behavior of the API server. You should restrict its file permissions to maintain the integrity of the file. The file should be writable by only the administrators on the system.
+        scored: true
+
+      - id: 1.1.2
+        text: "Ensure that the API server pod specification file ownership is set to root:root (Automated)"
+        audit: "/bin/sh -c 'if test -e $apiserverconf; then stat -c %U:%G $apiserverconf; fi'"
+        tests:
+          test_items:
+            - flag: "root:root"
+        remediation: |
+          The API server pod specification file controls various parameters that set the behavior of the API server. You should set its file ownership to maintain the integrity of the file. The file should be owned by root:root.
+        scored: true
+
+      - id: 1.1.3
+        text: "Ensure that the controller manager pod specification file permissions are set to 600 or more restrictive (Automated)"
+        audit: "/bin/sh -c 'if test -e $controllermanagerconf; then stat -c permissions=%a $controllermanagerconf; fi'"
+        tests:
+          test_items:
+            - flag: "permissions"
+              compare:
+                op: bitmask
+                value: "600"
+        remediation: |
+          The controller manager pod specification file controls various parameters that set the behavior of the Controller Manager on the master node. You should restrict its file permissions to maintain the integrity of the file. The file should be writable by only the administrators on the system.
+        scored: true
+
+      - id: 1.1.4
+        text: "Ensure that the controller manager pod specification file ownership is set to root:root (Automated)"
+        audit: "/bin/sh -c 'if test -e $controllermanagerconf; then stat -c %U:%G $controllermanagerconf; fi'"
+        tests:
+          test_items:
+            - flag: "root:root"
+        remediation: |
+          The controller manager pod specification file controls various parameters that set the behavior of various components of the master node. You should set its file ownership to maintain the integrity of the file. The file should be owned by root:root.
+        scored: true
+
+      - id: 1.1.5
+        text: "Ensure that the scheduler pod specification file permissions are set to 600 or more restrictive (Automated)"
+        audit: "/bin/sh -c 'if test -e $schedulerconf; then stat -c permissions=%a $schedulerconf; fi'"
+        tests:
+          test_items:
+            - flag: "permissions"
+              compare:
+                op: bitmask
+                value: "600"
+        remediation: |
+          The scheduler pod specification file controls various parameters that set the behavior of the Scheduler service in the master node. You should restrict its file permissions to maintain the integrity of the file. The file should be writable by only the administrators on the system.
+        scored: true
+
+      - id: 1.1.6
+        text: "Ensure that the scheduler pod specification file ownership is set to root:root (Automated)"
+        audit: "/bin/sh -c 'if test -e $schedulerconf; then stat -c %U:%G $schedulerconf; fi'"
+        tests:
+          test_items:
+            - flag: "root:root"
+        remediation: |
+          The scheduler pod specification file controls various parameters that set the behavior of the kube-scheduler service in the master node. You should set its file ownership to maintain the integrity of the file. The file should be owned by root:root.
+        scored: true
+
+      - id: 1.1.7
+        text: "Ensure that the etcd pod specification file permissions are set to 600 or more restrictive (Automated)"
+        audit: "/bin/sh -c 'if test -e $etcdconf; then find $etcdconf -name \"*etcd*\" | xargs stat -c permissions=%a; fi'"
+        tests:
+          test_items:
+            - flag: "permissions"
+              compare:
+                op: bitmask
+                value: "600"
+        remediation: |
+          The etcd pod specification file /etc/kubernetes/manifests/etcd.yaml controls various parameters that set the behavior of the etcd service in the master node. etcd is a highly-available key-value store which Kubernetes uses for persistent storage of all of its REST API object. You should restrict its file permissions to maintain the integrity of the file. The file should be writable by only the administrators on the system.
+        scored: true
+
+      - id: 1.1.8
+        text: "Ensure that the etcd pod specification file ownership is set to root:root (Automated)"
+        audit: "/bin/sh -c 'if test -e $etcdconf; then find $etcdconf -name \"*etcd*\" | xargs stat -c %U:%G; fi'"
+        tests:
+          test_items:
+            - flag: "root:root"
+        remediation: |
+          The etcd pod specification file /etc/kubernetes/manifests/etcd.yaml controls various parameters that set the behavior of the etcd service in the master node. etcd is a highly-available key-value store which Kubernetes uses for persistent storage of all of its REST API object. You should set its file ownership to maintain the integrity of the file. The file should be owned by root:root.
+        scored: true
+
+      - id: 1.1.9
+        text: "Ensure that the Container Network Interface file permissions are set to 600 or more restrictive (Manual)"
+        audit: |
+          ps -ef | grep $kubeletbin | grep -- --cni-conf-dir | sed 's%.*cni-conf-dir[= ]\([^ ]*\).*%\1%' | xargs -I{} find {} -mindepth 1 | xargs --no-run-if-empty stat -c permissions=%a
+          find /var/lib/cni/networks -type f 2> /dev/null | xargs --no-run-if-empty stat -c permissions=%a
+        use_multiple_values: true
+        tests:
+          test_items:
+            - flag: "permissions"
+              compare:
+                op: bitmask
+                value: "600"
+        remediation: |
+          Container Network Interface provides various networking options for overlay networking. You should consult their documentation and restrict their respective file permissions to maintain the integrity of those files. Those files should be writable by only the administrators on the system.
+        scored: false
+
+      - id: 1.1.10
+        text: "Ensure that the Container Network Interface file ownership is set to root:root (Manual)"
+        audit: |
+          ps -ef | grep $kubeletbin | grep -- --cni-conf-dir | sed 's%.*cni-conf-dir[= ]\([^ ]*\).*%\1%' | xargs -I{} find {} -mindepth 1 | xargs --no-run-if-empty stat -c %U:%G
+          find /var/lib/cni/networks -type f 2> /dev/null | xargs --no-run-if-empty stat -c %U:%G
+        use_multiple_values: true
+        tests:
+          test_items:
+            - flag: "root:root"
+        remediation: |
+          Container Network Interface provides various networking options for overlay networking. You should consult their documentation and restrict their respective file permissions to maintain the integrity of those files. Those files should be owned by root:root.
+        scored: false
+
+      - id: 1.1.11
+        text: "Ensure that the etcd data directory permissions are set to 700 or more restrictive (Automated)"
+        audit: |
+          DATA_DIR=''
+          for d in $(ps -ef | grep $etcdbin | grep -- --data-dir | sed 's%.*data-dir[= ]\([^ ]*\).*%\1%'); do
+            if test -d "$d"; then DATA_DIR="$d"; fi
+          done
+          if ! test -d "$DATA_DIR"; then DATA_DIR=$etcddatadir; fi
+          stat -c permissions=%a "$DATA_DIR"
+        tests:
+          test_items:
+            - flag: "permissions"
+              compare:
+                op: bitmask
+                value: "700"
+        remediation: |
+          etcd is a highly-available key-value store used by Kubernetes deployments for persistent storage of all of its REST API objects. This data directory should be protected from any unauthorized reads or writes. It should not be readable or writable by any group members or the world.
+        scored: true
+
+      - id: 1.1.12
+        text: "Ensure that the etcd data directory ownership is set to etcd:etcd (Automated)"
+        audit: |
+          DATA_DIR=''
+          for d in $(ps -ef | grep $etcdbin | grep -- --data-dir | sed 's%.*data-dir[= ]\([^ ]*\).*%\1%'); do
+            if test -d "$d"; then DATA_DIR="$d"; fi
+          done
+          if ! test -d "$DATA_DIR"; then DATA_DIR=$etcddatadir; fi
+          stat -c %U:%G "$DATA_DIR"
+        tests:
+          test_items:
+            - flag: "etcd:etcd"
+        remediation: |
+          etcd is a highly-available key-value store used by Kubernetes deployments for persistent storage of all of its REST API objects. This data directory should be protected from any unauthorized reads or writes. It should be owned by etcd:etcd.
+        scored: true
+
+      - id: 1.1.13
+        text: "Ensure that the default administrative credential file permissions are set to 600 (Automated)"
+        audit: |
+         for adminconf in /etc/kubernetes/admin.conf /etc/kubernetes/super-admin.conf; do if test -e $adminconf; then stat -c "permissions=%a %n" $adminconf; fi; done
+        use_multiple_values: true
+        tests:
+          test_items:
+            - flag: "permissions"
+              compare:
+                op: bitmask
+                value: "600"
+        remediation: |
+          As part of initial cluster setup, default kubeconfig files are created to be used by the administrator of the cluster. These files contain private keys and certificates which allow for privileged access to the cluster. You should restrict their file permissions to maintain the integrity and confidentiality of the file(s). The file(s) should be readable and writable by only the administrators on the system.
+        scored: true
+
+      - id: 1.1.14
+        text: "Ensure that the default administrative credential file ownership is set to root:root (Automated)"
+        audit: |
+         for adminconf in /etc/kubernetes/admin.conf /etc/kubernetes/super-admin.conf; do if test -e $adminconf; then stat -c "ownership=%U:%G %n" $adminconf; fi; done
+        use_multiple_values: true
+        tests:
+          test_items:
+            - flag: "ownership"
+              compare:
+                op: eq
+                value: "root:root"
+        remediation: |
+          As part of initial cluster setup, default kubeconfig files are created to be used by the administrator of the cluster. These files contain private keys and certificates which allow for privileged access to the cluster. You should set their file ownership to maintain the integrity and confidentiality of the file. The file(s) should be owned by root:root.
+        scored: true
+
+      - id: 1.1.15
+        text: "Ensure that the scheduler.conf file permissions are set to 600 or more restrictive (Automated)"
+        audit: "/bin/sh -c 'if test -e $schedulerkubeconfig; then stat -c permissions=%a $schedulerkubeconfig; fi'"
+        tests:
+          test_items:
+            - flag: "permissions"
+              compare:
+                op: bitmask
+                value: "600"
+        remediation: |
+          The scheduler.conf file is the kubeconfig file for the Scheduler. You should restrict its file permissions to maintain the integrity of the file. The file should be writable by only the administrators on the system.
+        scored: true
+
+      - id: 1.1.16
+        text: "Ensure that the scheduler.conf file ownership is set to root:root (Automated)"
+        audit: "/bin/sh -c 'if test -e $schedulerkubeconfig; then stat -c %U:%G $schedulerkubeconfig; fi'"
+        tests:
+          test_items:
+            - flag: "root:root"
+        remediation: |
+          The scheduler.conf file is the kubeconfig file for the Scheduler. You should set its file ownership to maintain the integrity of the file. The file should be owned by root:root.
+        scored: true
+
+      - id: 1.1.17
+        text: "Ensure that the controller-manager.conf file permissions are set to 600 or more restrictive (Automated)"
+        audit: "/bin/sh -c 'if test -e $controllermanagerkubeconfig; then stat -c permissions=%a $controllermanagerkubeconfig; fi'"
+        tests:
+          test_items:
+            - flag: "permissions"
+              compare:
+                op: bitmask
+                value: "600"
+        remediation: |
+          The controller-manager.conf file is the kubeconfig file for the Controller Manager. You should restrict its file permissions to maintain the integrity of the file. The file should be writable by only the administrators on the system.
+        scored: true
+
+      - id: 1.1.18
+        text: "Ensure that the controller-manager.conf file ownership is set to root:root (Automated)"
+        audit: "/bin/sh -c 'if test -e $controllermanagerkubeconfig; then stat -c %U:%G $controllermanagerkubeconfig; fi'"
+        tests:
+          test_items:
+            - flag: "root:root"
+        remediation: |
+          The controller-manager.conf file is the kubeconfig file for the Controller Manager. You should set its file ownership to maintain the integrity of the file. The file should be owned by root:root.
+        scored: true
+
+      - id: 1.1.19
+        text: "Ensure that the Kubernetes PKI directory and file ownership is set to root:root (Automated)"
+        audit: "find /etc/kubernetes/pki/ | xargs stat -c %U:%G"
+        use_multiple_values: true
+        tests:
+          test_items:
+            - flag: "root:root"
+        remediation: |
+          Kubernetes makes use of a number of certificates as part of its operation. You should set the ownership of the directory containing the PKI information and all files in that directory to maintain their integrity. The directory and files should be owned by root:root.
+        scored: true
+
+      - id: 1.1.20
+        text: "Ensure that the Kubernetes PKI certificate file permissions are set to 644 or more restrictive (Manual)"
+        audit: "find /etc/kubernetes/pki/ -name '*.crt' | xargs stat -c permissions=%a"
+        use_multiple_values: true
+        tests:
+          test_items:
+            - flag: "permissions"
+              compare:
+                op: bitmask
+                value: "644"
+        remediation: |
+          Kubernetes makes use of a number of certificate files as part of the operation of its components. The permissions on these files should be set to 644 or more restrictive to protect their integrity and confidentiality.
+        scored: false
+
+      - id: 1.1.21
+        text: "Ensure that the Kubernetes PKI key file permissions are set to 600 (Manual)"
+        audit: "find /etc/kubernetes/pki/ -name '*.key' | xargs stat -c permissions=%a"
+        use_multiple_values: true
+        tests:
+          test_items:
+            - flag: "permissions"
+              compare:
+                op: bitmask
+                value: "600"
+        remediation: |
+          Kubernetes makes use of a number of key files as part of the operation of its components. The permissions on these files should be set to 600 to protect their integrity and confidentiality.
+        scored: false
+
+  - id: 1.2
+    text: "API Server"
+    checks:
+      - id: 1.2.1
+        text: "Ensure that the --anonymous-auth argument is set to false (Manual)"
+        audit: "/bin/ps -ef | grep $apiserverbin | grep -v grep"
+        tests:
+          test_items:
+            - flag: "--anonymous-auth"
+              compare:
+                op: eq
+                value: false
+        impact: "Anonymous requests will be rejected."
+        remediation: |
+          When enabled, requests that are not rejected by other configured authentication methods are treated as anonymous requests. These requests are then served by the API server. You should rely on authentication to authorize access and disallow anonymous requests. If you are using RBAC authorization, it is generally considered reasonable to allow anonymous access to the API Server for health checks and discovery purposes, and hence this recommendation is not scored. However, you should consider whether anonymous discovery is an acceptable risk for your purposes.
+        scored: false
+
+      - id: 1.2.2
+        text: "Ensure that the --token-auth-file parameter is not set (Automated)"
+        audit: "/bin/ps -ef | grep $apiserverbin | grep -v grep"
+        tests:
+          test_items:
+            - flag: "--token-auth-file"
+              set: false
+        impact: "You will have to configure and use alternate authentication mechanisms such as certificates. Static token based authentication could not be used."
+        remediation: |
+          The token-based authentication utilizes static tokens to authenticate requests to the apiserver. The tokens are stored in clear-text in a file on the apiserver, and cannot be revoked or rotated without restarting the apiserver. Hence, do not use static token- based authentication.
+        scored: true
+
+      - id: 1.2.3
+        text: "Ensure that the DenyServiceExternalIPs is set (Manual)"
+        audit: "/bin/ps -ef | grep $apiserverbin | grep -v grep"
+        tests:
+          bin_op: or
+          test_items:
+            - flag: "--enable-admission-plugins"
+              compare:
+                op: has
+                value: "DenyServiceExternalIPs"
+        remediation: |
+          Edit the API server pod specification file $apiserverconf
+          on the control plane node and append the `DenyServiceExternalIPs`
+          admission controller to the `--enable-admission-plugins` flag.
+
+          Example:
+          --enable-admission-plugins=DenyServiceExternalIPs
+
+          Note: The `--enable-admission-plugins` flag accepts a comma-separated
+          list of admission controllers, even for plugins that are enabled by default.
+        scored: false
+
+      - id: 1.2.4
+        text: "Ensure that the --kubelet-client-certificate and --kubelet- client-key arguments are set as appropriate (Automated)"
+        audit: "/bin/ps -ef | grep $apiserverbin | grep -v grep"
+        tests:
+          bin_op: and
+          test_items:
+            - flag: "--kubelet-client-certificate"
+            - flag: "--kubelet-client-key"
+        remediation: |
+          Follow the Kubernetes documentation and set up the TLS connection between the
+          API server and kubelets. Then, edit the API server pod specification file
+          $apiserverconf on the Control Plane node and set the kubelet client
+          certificate and key parameters as shown below.
+
+          --kubelet-client-certificate=<path/to/client-certificate-file>
+          --kubelet-client-key=<path/to/client-key-file>
+        scored: true
+
+      - id: 1.2.5
+        text: "Ensure that the --kubelet-certificate-authority argument is set as appropriate (Automated)"
+        audit: "/bin/ps -ef | grep $apiserverbin | grep -v grep"
+        tests:
+          test_items:
+            - flag: "--kubelet-certificate-authority"
+        impact: "You require TLS to be configured on apiserver as well as kubelets."
+        remediation: |
+          The connections from the apiserver to the kubelet are used for fetching logs for pods, attaching (through kubectl) to running pods, and using the kubelet’s port-forwarding functionality. These connections terminate at the kubelet’s HTTPS endpoint. By default, the apiserver does not verify the kubelet’s serving certificate, which makes the connection subject to man-in-the-middle attacks, and unsafe to run over untrusted and/or public networks.
+        scored: true
+
+      - id: 1.2.6
+        text: "Ensure that the --authorization-mode argument is not set to AlwaysAllow (Automated)"
+        audit: "/bin/ps -ef | grep $apiserverbin | grep -v grep"
+        tests:
+          test_items:
+            - flag: "--authorization-mode"
+              compare:
+                op: nothave
+                value: "AlwaysAllow"
+        impact: "Only authorized requests will be served."
+        remediation: |
+          The API Server, can be configured to allow all requests. This mode should not be used on any production cluster.
+        scored: true
+
+      - id: 1.2.7
+        text: "Ensure that the --authorization-mode argument includes Node (Automated)"
+        audit: "/bin/ps -ef | grep $apiserverbin | grep -v grep"
+        tests:
+          test_items:
+            - flag: "--authorization-mode"
+              compare:
+                op: has
+                value: "Node"
+        remediation: |
+          The Node authorization mode only allows kubelets to read Secret, ConfigMap, PersistentVolume, and PersistentVolumeClaim objects associated with their nodes.
+        scored: true
+
+      - id: 1.2.8
+        text: "Ensure that the --authorization-mode argument includes RBAC (Automated)"
+        audit: "/bin/ps -ef | grep $apiserverbin | grep -v grep"
+        tests:
+          test_items:
+            - flag: "--authorization-mode"
+              compare:
+                op: has
+                value: "RBAC"
+        impact: "When RBAC is enabled you will need to ensure that appropriate RBAC settings (including Roles, RoleBindings and ClusterRoleBindings) are configured to allow appropriate access."
+        remediation: |
+          Role Based Access Control (RBAC) allows fine-grained control over the operations that different entities can perform on different objects in the cluster. It is recommended to use the RBAC authorization mode.
+        scored: true
+
+      - id: 1.2.9
+        text: "Ensure that the admission control plugin EventRateLimit is set (Manual)"
+        audit: "/bin/ps -ef | grep $apiserverbin | grep -v grep"
+        tests:
+          test_items:
+            - flag: "--enable-admission-plugins"
+              compare:
+                op: has
+                value: "EventRateLimit"
+        impact: "You need to carefully tune in limits as per your environment."
+        remediation: |
+          Using EventRateLimit admission control enforces a limit on the number of events that the API Server will accept in a given time slice. A misbehaving workload could overwhelm and DoS the API Server, making it unavailable. This particularly applies to a multi-tenant cluster, where there might be a small percentage of misbehaving tenants which could have a significant impact on the performance of the cluster overall. Hence, it is recommended to limit the rate of events that the API server will accept.
+        scored: false
+
+      - id: 1.2.10
+        text: "Ensure that the admission control plugin AlwaysAdmit is not set (Automated)"
+        audit: "/bin/ps -ef | grep $apiserverbin | grep -v grep"
+        tests:
+          bin_op: or
+          test_items:
+            - flag: "--enable-admission-plugins"
+              compare:
+                op: nothave
+                value: AlwaysAdmit
+            - flag: "--enable-admission-plugins"
+              set: false
+        impact: "Only requests explicitly allowed by the admissions control plugins would be served."
+        remediation: |
+          Setting admission control plugin AlwaysAdmit allows all requests and do not filter any requests. The AlwaysAdmit admission controller was deprecated in Kubernetes v1.13. Its behavior was equivalent to turning off all admission controllers.
+        scored: true
+
+      - id: 1.2.11
+        text: "Ensure that the admission control plugin AlwaysPullImages is set (Manual)"
+        audit: "/bin/ps -ef | grep $apiserverbin | grep -v grep"
+        tests:
+          test_items:
+            - flag: "--enable-admission-plugins"
+              compare:
+                op: has
+                value: "AlwaysPullImages"
+        impact: "Credentials would be required to pull the private images every time. Also, in trusted environments, this might increases load on network, registry, and decreases speed. This setting could impact offline or isolated clusters, which have images preloaded and do not have access to a registry to pull in-use images. This setting is not appropriate for clusters which use this configuration."
+        remediation: |
+          Setting admission control policy to AlwaysPullImages forces every new pod to pull the required images every time. In a multi-tenant cluster users can be assured that their private images can only be used by those who have the credentials to pull them. Without this admission control policy, once an image has been pulled to a node, any pod from any user can use it simply by knowing the image’s name, without any authorization check against the image ownership. When this plug-in is enabled, images are always pulled prior to starting containers, which means valid credentials are required.
+        scored: false
+
+      - id: 1.2.12
+        text: "Ensure that the admission control plugin ServiceAccount is set (Automated)"
+        audit: "/bin/ps -ef | grep $apiserverbin | grep -v grep"
+        tests:
+          bin_op: or
+          test_items:
+            - flag: "--disable-admission-plugins"
+              compare:
+                op: nothave
+                value: "ServiceAccount"
+            - flag: "--disable-admission-plugins"
+              set: false
+        remediation: |
+          When you create a pod, if you do not specify a service account, it is automatically assigned the default service account in the same namespace. You should create your own service account and let the API server manage its security tokens.
+        scored: true
+
+      - id: 1.2.13
+        text: "Ensure that the admission control plugin NamespaceLifecycle is set (Automated)"
+        audit: "/bin/ps -ef | grep $apiserverbin | grep -v grep"
+        tests:
+          bin_op: or
+          test_items:
+            - flag: "--disable-admission-plugins"
+              compare:
+                op: nothave
+                value: "NamespaceLifecycle"
+            - flag: "--disable-admission-plugins"
+              set: false
+        remediation: |
+          Setting admission control policy to NamespaceLifecycle ensures that objects cannot be created in non-existent namespaces, and that namespaces undergoing termination are not used for creating the new objects. This is recommended to enforce the integrity of the namespace termination process and also for the availability of the newer objects.
+        scored: true
+
+      - id: 1.2.14
+        text: "Ensure that the admission control plugin NodeRestriction is set (Automated)"
+        audit: "/bin/ps -ef | grep $apiserverbin | grep -v grep"
+        tests:
+          test_items:
+            - flag: "--enable-admission-plugins"
+              compare:
+                op: has
+                value: "NodeRestriction"
+        remediation: |
+          Using the NodeRestriction plug-in ensures that the kubelet is restricted to the Node and Pod objects that it could modify as defined. Such kubelets will only be allowed to modify their own Node API object, and only modify Pod API objects that are bound to their node.
+        scored: true
+
+      - id: 1.2.15
+        text: "Ensure that the --profiling argument is set to false (Automated)"
+        audit: "/bin/ps -ef | grep $apiserverbin | grep -v grep"
+        tests:
+          test_items:
+            - flag: "--profiling"
+              compare:
+                op: eq
+                value: false
+        impact: "Profiling information would not be available."
+        remediation: |
+          Profiling allows for the identification of specific performance bottlenecks. It generates a significant amount of program data that could potentially be exploited to uncover system and program details. If you are not experiencing any bottlenecks and do not need the profiler for troubleshooting purposes, it is recommended to turn it off to reduce the potential attack surface.
+        scored: true
+
+      - id: 1.2.16
+        text: "Ensure that the --audit-log-path argument is set (Automated)"
+        audit: "/bin/ps -ef | grep $apiserverbin | grep -v grep"
+        tests:
+          test_items:
+            - flag: "--audit-log-path"
+        remediation: |
+          Auditing the Kubernetes API Server provides a security-relevant chronological set of records documenting the sequence of activities that have affected system by individual users, administrators or other components of the system. Even though currently, Kubernetes provides only basic audit capabilities, it should be enabled. You can enable it by setting an appropriate audit log path.
+        scored: true
+
+      - id: 1.2.17
+        text: "Ensure that the --audit-log-maxage argument is set to 30 or as appropriate (Automated)"
+        audit: "/bin/ps -ef | grep $apiserverbin | grep -v grep"
+        tests:
+          test_items:
+            - flag: "--audit-log-maxage"
+              compare:
+                op: gte
+                value: 30
+        remediation: |
+          Retaining logs for at least 30 days ensures that you can go back in time and investigate or correlate any events. Set your audit log retention period to 30 days or as per your business requirements.
+        scored: true
+
+      - id: 1.2.18
+        text: "Ensure that the --audit-log-maxbackup argument is set to 10 or as appropriate (Automated)"
+        audit: "/bin/ps -ef | grep $apiserverbin | grep -v grep"
+        tests:
+          test_items:
+            - flag: "--audit-log-maxbackup"
+              compare:
+                op: gte
+                value: 10
+        remediation: |
+          Kubernetes automatically rotates the log files. Retaining old log files ensures that you would have sufficient log data available for carrying out any investigation or correlation. For example, if you have set file size of 100 MB and the number of old log files to keep as 10, you would approximate have 1 GB of log data that you could potentially use for your analysis.
+        scored: true
+
+      - id: 1.2.19
+        text: "Ensure that the --audit-log-maxsize argument is set to 100 or as appropriate (Automated)"
+        audit: "/bin/ps -ef | grep $apiserverbin | grep -v grep"
+        tests:
+          test_items:
+            - flag: "--audit-log-maxsize"
+              compare:
+                op: gte
+                value: 100
+        remediation: |
+          Kubernetes automatically rotates the log files. Retaining old log files ensures that you would have sufficient log data available for carrying out any investigation or correlation. If you have set file size of 100 MB and the number of old log files to keep as 10, you would approximate have 1 GB of log data that you could potentially use for your analysis.
+        scored: true
+
+      - id: 1.2.20
+        text: "Ensure that the --request-timeout argument is set as appropriate (Manual)"
+        audit: "/bin/ps -ef | grep $apiserverbin | grep -v grep"
+        type: manual
+        remediation: |
+          Setting global request timeout allows extending the API server request timeout limit to a duration appropriate to the user's connection speed. By default, it is set to 60 seconds which might be problematic on slower connections making cluster resources inaccessible once the data volume for requests exceeds what can be transmitted in 60 seconds. But, setting this timeout limit to be too large can exhaust the API server resources making it prone to Denial-of-Service attack. Hence, it is recommended to set this limit as appropriate and change the default limit of 60 seconds only if needed.
+        scored: false
+
+      - id: 1.2.21
+        text: "Ensure that the --service-account-lookup argument is set to true (Automated)"
+        audit: "/bin/ps -ef | grep $apiserverbin | grep -v grep"
+        tests:
+          bin_op: or
+          test_items:
+            - flag: "--service-account-lookup"
+              set: false
+            - flag: "--service-account-lookup"
+              compare:
+                op: eq
+                value: true
+        remediation: |
+          If --service-account-lookup is not enabled, the apiserver only verifies that the authentication token is valid, and does not validate that the service account token mentioned in the request is actually present in etcd. This allows using a service account token even after the corresponding service account is deleted. This is an example of time of check to time of use security issue.
+        scored: true
+
+      - id: 1.2.22
+        text: "Ensure that the --service-account-key-file argument is set as appropriate (Automated)"
+        audit: "/bin/ps -ef | grep $apiserverbin | grep -v grep"
+        tests:
+          test_items:
+            - flag: "--service-account-key-file"
+        impact: "The corresponding private key must be provided to the controller manager. You would need to securely maintain the key file and rotate the keys based on your organization's key rotation policy."
+        remediation: |
+          By default, if no --service-account-key-file is specified to the apiserver, it uses the private key from the TLS serving certificate to verify service account tokens. To ensure that the keys for service account tokens could be rotated as needed, a separate public/private key pair should be used for signing service account tokens. Hence, the public key should be specified to the apiserver with --service-account-key-file.
+        scored: true
+
+      - id: 1.2.23
+        text: "Ensure that the --etcd-certfile and --etcd-keyfile arguments are set as appropriate (Automated)"
+        audit: "/bin/ps -ef | grep $apiserverbin | grep -v grep"
+        tests:
+          bin_op: and
+          test_items:
+            - flag: "--etcd-certfile"
+            - flag: "--etcd-keyfile"
+        impact: "TLS and client certificate authentication must be configured for etcd."
+        remediation: |
+          etcd is a highly-available key value store used by Kubernetes deployments for persistent storage of all of its REST API objects. These objects are sensitive in nature and should be protected by client authentication. This requires the API server to identify itself to the etcd server using a client certificate and key.
+        scored: true
+
+      - id: 1.2.24
+        text: "Ensure that the --tls-cert-file and --tls-private-key-file arguments are set as appropriate (Automated)"
+        audit: "/bin/ps -ef | grep $apiserverbin | grep -v grep"
+        tests:
+          bin_op: and
+          test_items:
+            - flag: "--tls-cert-file"
+            - flag: "--tls-private-key-file"
+        impact: "TLS and client certificate authentication must be configured for your Kubernetes cluster deployment."
+        remediation: |
+          API server communication contains sensitive parameters that should remain encrypted in transit. Configure the API server to serve only HTTPS traffic.
+        scored: true
+
+      - id: 1.2.25
+        text: "Ensure that the --client-ca-file argument is set as appropriate (Automated)"
+        audit: "/bin/ps -ef | grep $apiserverbin | grep -v grep"
+        tests:
+          test_items:
+            - flag: "--client-ca-file"
+        impact: "TLS and client certificate authentication must be configured for your Kubernetes cluster deployment."
+        remediation: |
+          API server communication contains sensitive parameters that should remain encrypted in transit. Configure the API server to serve only HTTPS traffic. If --client-ca-file argument is set, any request presenting a client certificate signed by one of the authorities in the client-ca-file is authenticated with an identity corresponding to the CommonName of the client certificate.
+        scored: true
+
+      - id: 1.2.26
+        text: "Ensure that the --etcd-cafile argument is set as appropriate (Automated)"
+        audit: "/bin/ps -ef | grep $apiserverbin | grep -v grep"
+        tests:
+          test_items:
+            - flag: "--etcd-cafile"
+        impact: "TLS and client certificate authentication must be configured for etcd."
+        remediation: |
+          etcd is a highly-available key value store used by Kubernetes deployments for persistent storage of all of its REST API objects. These objects are sensitive in nature and should be protected by client authentication. This requires the API server to identify itself to the etcd server using a SSL Certificate Authority file.
+        scored: true
+
+      - id: 1.2.27
+        text: "Ensure that the --encryption-provider-config argument is set as appropriate (Manual)"
+        audit: "/bin/ps -ef | grep $apiserverbin | grep -v grep"
+        tests:
+          test_items:
+            - flag: "--encryption-provider-config"
+        remediation: |
+          etcd is a highly available key-value store used by Kubernetes deployments for persistent storage of all of its REST API objects. These objects are sensitive in nature and should be encrypted at rest to avoid any disclosures.
+        scored: false
+
+      - id: 1.2.28
+        text: "Ensure that encryption providers are appropriately configured (Manual)"
+        audit: |
+          ENCRYPTION_PROVIDER_CONFIG=$(ps -ef | grep $apiserverbin | grep -- --encryption-provider-config | sed 's%.*encryption-provider-config[= ]\([^ ]*\).*%\1%')
+          if test -e $ENCRYPTION_PROVIDER_CONFIG; then grep -A1 'providers:' $ENCRYPTION_PROVIDER_CONFIG | tail -n1 | grep -o "[A-Za-z]*" | sed 's/^/provider=/'; fi
+        tests:
+          test_items:
+            - flag: "provider"
+              compare:
+                op: valid_elements
+                value: "aescbc,kms,secretbox"
+        remediation: |
+          Where etcd encryption is used, it is important to ensure that the appropriate set of encryption providers is used. Currently, the aescbc, kms, and secretbox are likely to be appropriate options.
+        scored: false
+
+      - id: 1.2.29
+        text: "Ensure that the API Server only makes use of Strong Cryptographic Ciphers (Manual)"
+        audit: "/bin/ps -ef | grep $apiserverbin | grep -v grep"
+        tests:
+          test_items:
+            - flag: "--tls-cipher-suites"
+              compare:
+                op: valid_elements
+                value: "TLS_AES_128_GCM_SHA256,TLS_AES_256_GCM_SHA384,TLS_CHACHA20_POLY1305_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256"
+        impact: "API server clients that cannot support modern cryptographic ciphers will not be able to make connections to the API server."
+        remediation: |
+          TLS ciphers have had a number of known vulnerabilities and weaknesses, which can reduce the protection provided by them. By default Kubernetes supports a number of TLS cipher suites including some that have security concerns, weakening the protection provided.
+        scored: false
+
+      - id: 1.2.30
+        text: "Ensure that the --service-account-extend-token-expiration parameter is set to false (Automated)"
+        audit: "/bin/ps -ef | grep $apiserverbin | grep -v grep"
+        tests:
+          test_items:
+            - flag: "--service-account-extend-token-expiration"
+              compare:
+                op: eq
+                value: false
+        impact: "Disabling this setting means that the service account token expiry set in the cluster will be enforced, and service account tokens will expire at the end of that time frame."
+        remediation: |
+          This default setting is not ideal for security as it ignores other settings related to maximum token lifetime and means that a lost or stolen credential could be valid for an extended period of time.
+        scored: true
+
+  - id: 1.3
+    text: "Controller Manager"
+    checks:
+      - id: 1.3.1
+        text: "Ensure that the --terminated-pod-gc-threshold argument is set as appropriate (Manual)"
+        audit: "/bin/ps -ef | grep $controllermanagerbin | grep -v grep"
+        tests:
+          test_items:
+            - flag: "--terminated-pod-gc-threshold"
+        remediation: |
+          Garbage collection is important to ensure sufficient resource availability and avoiding degraded performance and availability. In the worst case, the system might crash or just be unusable for a long period of time. The current setting for garbage collection is 12,500 terminated pods which might be too high for your system to sustain. Based on your system resources and tests, choose an appropriate threshold value to activate garbage collection.
+        scored: false
+
+      - id: 1.3.2
+        text: "Ensure that the --profiling argument is set to false (Automated)"
+        audit: "/bin/ps -ef | grep $controllermanagerbin | grep -v grep"
+        tests:
+          test_items:
+            - flag: "--profiling"
+              compare:
+                op: eq
+                value: false
+        impact: "Profiling information would not be available."
+        remediation: |
+          Profiling allows for the identification of specific performance bottlenecks. It generates a significant amount of program data that could potentially be exploited to uncover system and program details. If you are not experiencing any bottlenecks and do not need the profiler for troubleshooting purposes, it is recommended to turn it off to reduce the potential attack surface.
+        scored: true
+
+      - id: 1.3.3
+        text: "Ensure that the --use-service-account-credentials argument is set to true (Automated)"
+        audit: "/bin/ps -ef | grep $controllermanagerbin | grep -v grep"
+        tests:
+          test_items:
+            - flag: "--use-service-account-credentials"
+              compare:
+                op: noteq
+                value: false
+        impact: "Whatever authorizer is configured for the cluster, it must grant sufficient permissions to the service accounts to perform their intended tasks. When using the RBAC authorizer, those roles are created and bound to the appropriate service accounts in the kube- system namespace automatically with default roles and rolebindings that are auto- reconciled on startup. If using other authorization methods (ABAC, Webhook, etc), the cluster deployer is responsible for granting appropriate permissions to the service accounts (the required permissions can be seen by inspecting the controller-roles.yaml and controller- role-bindings.yaml files for the RBAC roles."
+        remediation: |
+          The controller manager creates a service account per controller in the kube-system namespace, generates a credential for it, and builds a dedicated API client with that service account credential for each controller loop to use. Setting the --use-service- account-credentials to true runs each control loop within the controller manager using a separate service account credential. When used in combination with RBAC, this ensures that the control loops run with the minimum permissions required to perform their intended tasks.
+        scored: true
+
+      - id: 1.3.4
+        text: "Ensure that the --service-account-private-key-file argument is set as appropriate (Automated)"
+        audit: "/bin/ps -ef | grep $controllermanagerbin | grep -v grep"
+        tests:
+          test_items:
+            - flag: "--service-account-private-key-file"
+        impact: "You would need to securely maintain the key file and rotate the keys based on your organization's key rotation policy."
+        remediation: |
+          To ensure that keys for service account tokens can be rotated as needed, a separate public/private key pair should be used for signing service account tokens. The private key should be specified to the controller manager with --service-account-private- key-file as appropriate.
+        scored: true
+
+      - id: 1.3.5
+        text: "Ensure that the --root-ca-file argument is set as appropriate (Automated)"
+        audit: "/bin/ps -ef | grep $controllermanagerbin | grep -v grep"
+        tests:
+          test_items:
+            - flag: "--root-ca-file"
+        impact: "You need to setup and maintain root certificate authority file."
+        remediation: |
+          Processes running within pods that need to contact the API server must verify the API server's serving certificate. Failing to do so could be a subject to man-in-the-middle attacks. Providing the root certificate for the API server's serving certificate to the controller manager with the --root-ca-file argument allows the controller manager to inject the trusted bundle into pods so that they can verify TLS connections to the API server.
+        scored: true
+
+      - id: 1.3.6
+        text: "Ensure that the RotateKubeletServerCertificate argument is set to true (Automated)"
+        audit: "/bin/ps -ef | grep $controllermanagerbin | grep -v grep"
+        tests:
+          bin_op: or
+          test_items:
+            - flag: "--feature-gates"
+              compare:
+                op: nothave
+                value: "RotateKubeletServerCertificate=false"
+              set: true
+            - flag: "--feature-gates"
+              set: false
+        remediation: |
+          RotateKubeletServerCertificate causes the kubelet to both request a serving certificate after bootstrapping its client credentials and rotate the certificate as its existing credentials expire. This automated periodic rotation ensures that the there are no downtimes due to expired certificates and thus addressing availability in the CIA security triad. Note: This recommendation only applies if you let kubelets get their certificates from the API server. In case your kubelet certificates come from an outside authority/tool (e.g. Vault) then you need to take care of rotation yourself.
+        scored: true
+
+      - id: 1.3.7
+        text: "Ensure that the --bind-address argument is set to 127.0.0.1 (Automated)"
+        audit: "/bin/ps -ef | grep $controllermanagerbin | grep -v grep"
+        tests:
+          bin_op: or
+          test_items:
+            - flag: "--bind-address"
+              compare:
+                op: eq
+                value: "127.0.0.1"
+            - flag: "--bind-address"
+              set: false
+        remediation: |
+          The Controller Manager API service which runs on port 10252/TCP by default is used for health and metrics information and is available without authentication or encryption. As such it should only be bound to a localhost interface, to minimize the cluster's attack surface
+        scored: true
+
+  - id: 1.4
+    text: "Scheduler"
+    checks:
+      - id: 1.4.1
+        text: "Ensure that the --profiling argument is set to false (Automated)"
+        audit: "/bin/ps -ef | grep $schedulerbin | grep -v grep"
+        tests:
+          test_items:
+            - flag: "--profiling"
+              compare:
+                op: eq
+                value: false
+        impact: "Profiling information would not be available."
+        remediation: |
+          Profiling allows for the identification of specific performance bottlenecks. It generates a significant amount of program data that could potentially be exploited to uncover system and program details. If you are not experiencing any bottlenecks and do not need the profiler for troubleshooting purposes, it is recommended to turn it off to reduce the potential attack surface.
+        scored: true
+
+      - id: 1.4.2
+        text: "Ensure that the --bind-address argument is set to 127.0.0.1 (Automated)"
+        audit: "/bin/ps -ef | grep $schedulerbin | grep -v grep"
+        tests:
+          bin_op: or
+          test_items:
+            - flag: "--bind-address"
+              compare:
+                op: eq
+                value: "127.0.0.1"
+            - flag: "--bind-address"
+              set: false
+        remediation: |
+          The Scheduler API service which runs on port 10251/TCP by default is used for health and metrics information and is available without authentication or encryption. As such it should only be bound to a localhost interface, to minimize the cluster's attack surface
+        scored: true

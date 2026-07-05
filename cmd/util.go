@@ -520,7 +520,6 @@ func IsAKS(ctx context.Context, k8sClient kubernetes.Interface) (bool, error) {
 
 func getPlatformBenchmarkVersion(platform Platform) string {
 	glog.V(3).Infof("getPlatformBenchmarkVersion platform: %s", platform)
-
 	switch platform.Name {
 	case "eks":
 		return eksBenchmark(platform.Version)
@@ -532,9 +531,9 @@ func getPlatformBenchmarkVersion(platform Platform) string {
 		return ocpBenchmark(platform.Version)
 	case "k3s":
 		return k3sBenchmark(platform.Version)
-	case "rancher":
+	case "rancher", "rancher1", "rke":
 		return rkeBenchmark(platform.Version)
-	case "rke2r":
+	case "rke2", "rke2r":
 		return rke2Benchmark(platform.Version)
 	case "aliyun":
 		return "ack-1.0"
@@ -551,10 +550,12 @@ func eksBenchmark(version string) string {
 		return "eks-1.0.1"
 	case "1.29", "1.30", "1.31":
 		return "eks-1.7.0"
-	case "1.32", "1.33", "1.34":
+	case "1.32", "1.33":
 		return "eks-1.8.0"
+	case "1.34", "1.35", "1.36":
+		return "eks-2.0.0"
 	default:
-		return "eks-1.5.0"
+		return "eks-1.8.0"
 	}
 }
 
@@ -577,12 +578,10 @@ func gkeBenchmark(version string) string {
 		return "gke-1.2.0"
 	case "1.28", "1.29":
 		return "gke-1.6.0"
-	case "1.30":
-		return "gke-1.8.0"
-	case "1.31", "1.32", "1.33", "1.34":
-		return "gke-1.9.0"
+	case "1.30", "1.31", "1.32", "1.33", "1.34", "1.35", "1.36":
+		return "gke-2.0.0"
 	default:
-		return "gke-1.9.0"
+		return "gke-1.8.0"
 	}
 }
 
@@ -594,10 +593,10 @@ func ocpBenchmark(version string) string {
 		return "rh-1.0"
 	case "4.11":
 		return "rh-1.4"
-	case "4.13":
-		return "rh-1.8"
+	case "4.13", "4.15", "4.17", "4.19":
+		return "rh-1.9"
 	default:
-		return ""
+		return "rh-1.8"
 	}
 }
 
@@ -683,7 +682,7 @@ func getOpenShiftInfo() Platform {
 
 func getOcpValidVersion(ocpVer string) (string, error) {
 	ocpOriginal := ocpVer
-	valid := []string{"3.10", "4.1", "4.11", "4.13"}
+	valid := []string{"3.10", "4.1", "4.11", "4.13", "4.15", "4.17", "4.19"}
 	for !isEmpty(ocpVer) {
 		glog.V(3).Info(fmt.Sprintf("getOcpBenchmarkVersion check for ocp: %q \n", ocpVer))
 		if slices.Contains(valid, ocpVer) {

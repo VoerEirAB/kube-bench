@@ -1,6 +1,6 @@
 ---
 controls:
-version: "gke-1.9.0"
+version: "gke-2.0.0"
 id: 4
 text: "Kubernetes Policies"
 type: "policies"
@@ -46,7 +46,7 @@ groups:
         scored: true
 
       - id: 4.1.2
-        text: "Minimize access to secrets (Automated)"
+        text: "Ensure access to Secrets is minimized and granted only where required (Automated)"
         audit: |
           count=$(kubectl get roles --all-namespaces -o json | jq '
             .items[]
@@ -266,56 +266,6 @@ groups:
           privilege roles.
 
           If there are any non-default, unsafe bindings to the group system:unauthenticated,
-          proceed to delete them after consideration for cluster operations with only necessary,
-          safer bindings.
-
-            kubectl delete clusterrolebinding [CLUSTER_ROLE_BINDING_NAME]
-            kubectl delete rolebinding [ROLE_BINDING_NAME] --namespace [ROLE_BINDING_NAMESPACE]
-        scored: true
-
-      - id: 4.1.10
-        text: "Avoid non-default bindings to system:authenticated (Automated)"
-        audit: |
-          # Flags any non-default binding to the group "system:authenticated".
-          # Allowed defaults (CRB): system:basic-user, system:discovery
-          # Prints "NO_NON_DEFAULT_AUTH_BINDINGS" when none are found.
-          (
-            kubectl get clusterrolebindings -o json | jq -r '
-              .items[]
-              | select((.metadata.name != "system:basic-user") and (.metadata.name != "system:discovery"))
-              | select((.subjects | length) > 0)
-              | select(any(.subjects[]?;
-                  .kind=="Group" and .name=="system:authenticated"
-                ))
-              | "FOUND_AUTH:ClusterRoleBinding:\(.metadata.name):ROLE=\(.roleRef.kind)/\(.roleRef.name)"
-            ';
-            kubectl get rolebindings -A -o json | jq -r '
-              .items[]
-              | select((.subjects | length) > 0)
-              | select(any(.subjects[]?;
-                  .kind=="Group" and .name=="system:authenticated"
-                ))
-              | "FOUND_AUTH:RoleBinding:\(.metadata.namespace):\(.metadata.name):ROLE=\(.roleRef.kind)/\(.roleRef.name)"
-            '
-          ) | (grep -q "^FOUND_AUTH:" && cat || echo "NO_NON_DEFAULT_AUTH_BINDINGS")
-        tests:
-          test_items:
-            - flag: "NO_NON_DEFAULT_AUTH_BINDINGS"
-              set: true
-              compare:
-                op: eq
-                value: "NO_NON_DEFAULT_AUTH_BINDINGS"
-        remediation: |
-          Identify all non-default clusterrolebindings and rolebindings to the group
-          system:authenticated. Check if they are used and review the permissions associated
-          with the binding using the commands in the Audit section above or refer to GKE
-          documentation.
-
-          Strongly consider replacing non-default, unsafe bindings with an authenticated, user-
-          defined group. Where possible, bind to non-default, user-defined groups with least-
-          privilege roles.
-
-          If there are any non-default, unsafe bindings to the group system:authenticated,
           proceed to delete them after consideration for cluster operations with only necessary,
           safer bindings.
 
