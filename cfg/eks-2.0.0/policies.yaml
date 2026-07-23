@@ -1,0 +1,739 @@
+---
+controls:
+version: "eks-2.0.0"
+id: 4
+text: "Policies"
+type: "policies"
+groups:
+  - id: 4.1
+    text: "RBAC and Service Accounts"
+    checks:
+      - id: 4.1.1
+        text: "Ensure that the cluster-admin role is only used where required (Manual)"
+        type: manual
+        audit: |
+          kubectl get clusterrolebindings -o json | jq -r '
+            .items[]
+            | select(.roleRef.name == "cluster-admin")
+            | .metadata.name as $binding
+            | (.subjects // [])[]
+            | select(
+                (.kind != "Group" or .name != "system:masters")
+              )
+            | "\($binding) | \(.kind) | \(.namespace // "-") | \(.name)"
+          '
+        tests:
+          test_items:
+            - flag: "MANUAL_REVIEW"
+              set: true
+        remediation: |
+          Review each ClusterRoleBinding that grants the cluster-admin ClusterRole.
+          Ensure only identities requiring full cluster-wide administration retain this
+          permission. Replace unnecessary cluster-admin bindings with a lower-privilege
+          Role, ClusterRole, or namespace-scoped RoleBinding where appropriate.
+        scored: true
+
+      - id: 4.1.2
+        text: "Ensure access to Secrets is minimized and granted only where required (Manual)"
+        type: manual
+        audit: |
+          echo "===== Roles ====="
+          kubectl get roles,clusterroles --all-namespaces -o json | jq -r '
+            .items[]
+            | select(
+                any(.rules[]?;
+                  any(.resources[]?; . == "secrets")
+                  and any(.verbs[]?; . == "get" or . == "list" or . == "watch")
+                )
+              )
+            | "\(.kind) | \(.metadata.namespace // "-") | \(.metadata.name)"
+          '
+
+          echo ""
+          echo "===== RoleBindings ====="
+          kubectl get rolebindings,clusterrolebindings --all-namespaces -o wide
+
+          echo ""
+          echo "===== Service Accounts ====="
+          kubectl get serviceaccounts --all-namespaces
+
+          echo ""
+          echo "Review EKS Access Entries, Access Policies, and any legacy aws-auth mappings manually."
+        tests:
+          test_items:
+            - flag: "MANUAL_REVIEW"
+              set: true
+        remediation: |
+          Review every access path that grants read access to Kubernetes Secrets.
+          Remove unnecessary get, list, or watch permissions on Secrets from Roles,
+          ClusterRoles, users, groups, and service accounts. Where possible, replace
+          cluster-wide access with namespace-scoped permissions. Also review EKS
+          Access Entries, Access Policies, IRSA/Pod Identity permissions, and any
+          legacy aws-auth mappings to ensure Secrets access is granted only where
+          operationally required.
+        scored: true
+
+      - id: 4.1.3
+        text: "Minimize wildcard use in Roles and ClusterRoles (Manual)"
+        type: manual
+        audit: |
+          echo "===== Roles and ClusterRoles using wildcards ====="
+
+          kubectl get roles,clusterroles -A -o json | jq -r '
+            (["KIND","NAMESPACE","NAME","WILDCARD_FIELDS"] | join(" | ")),
+            (
+              .items[]
+              | . as $r
+              | [
+                  (if any(.rules[]?; any(.verbs[]?; .=="*")) then "verbs" else empty end),
+                  (if any(.rules[]?; any(.resources[]?; .=="*")) then "resources" else empty end),
+                  (if any(.rules[]?; any(.apiGroups[]?; .=="*")) then "apiGroups" else empty end)
+                ] as $wild
+              | select(($wild | length) > 0)
+              | [
+                  $r.kind,
+                  ($r.metadata.namespace // "-"),
+                  $r.metadata.name,
+                  ($wild | join(","))
+                ]
+              | join(" | ")
+            )
+          '
+
+          echo ""
+          echo "===== Review RoleBindings ====="
+          kubectl get rolebindings,clusterrolebindings -A
+
+          echo ""
+          echo "Review custom roles separately from EKS-managed (eks:*) and Kubernetes system:* roles."
+        tests:
+          test_items:
+            - flag: "MANUAL_REVIEW"
+              set: true
+        remediation: |
+          Review all customer-managed Roles and ClusterRoles that use wildcard (*)
+          values for verbs, resources, or apiGroups. Replace wildcard permissions with
+          explicit permissions wherever possible. Review the associated RoleBindings,
+          ClusterRoleBindings, EKS Access Entries, Kubernetes groups, and service
+          accounts before making changes. Do not modify EKS-managed or Kubernetes
+          system roles unless explicitly required.
+        scored: true
+
+      - id: 4.1.4
+        text: "Minimize access to create pods (Manual)"
+        type: "manual"
+        audit: |
+          echo "=== Review Kubernetes RBAC permissions that allow Pod creation ==="
+          kubectl get roles,clusterroles -A -o json | jq -r '
+            .items[]
+            | select(
+                any(.rules[]?;
+                  (
+                    any(.resources[]?;
+                      .=="pods" or
+                      .=="deployments" or
+                      .=="daemonsets" or
+                      .=="statefulsets" or
+                      .=="jobs" or
+                      .=="cronjobs"
+                    )
+                  )
+                  and
+                  any(.verbs[]?; .=="create")
+                )
+              )
+            | "\(.kind) \(.metadata.namespace // "-")/\(.metadata.name)"
+          '
+
+          echo
+          echo "=== Review RoleBindings and ClusterRoleBindings ==="
+          kubectl get rolebindings,clusterrolebindings -A
+
+          echo
+          echo "=== Review workloads using default ServiceAccount ==="
+          kubectl get deploy,sts,ds,job,cronjob,pod -A
+
+          echo
+          echo "=== Manual Review Required ==="
+          echo "- Review Amazon EKS Access Entries and Access Policies."
+          echo "- Review IRSA / EKS Pod Identity permissions."
+          echo "- Review Pod Security Admission or policy-as-code controls."
+          echo "- Review any remaining aws-auth mappings."
+
+        remediation: |
+          Reduce every authorization path that allows Pod creation.
+          Prefer namespace-scoped permissions over cluster-wide access.
+          Replace broad RBAC permissions with the minimum required Roles or
+          ClusterRoles. Use dedicated ServiceAccounts instead of the default
+          ServiceAccount, restrict IRSA/EKS Pod Identity permissions to least
+          privilege, and enforce Pod Security Admission or equivalent policy
+          controls. Review and remove unnecessary legacy aws-auth mappings.
+        scored: true
+
+      - id: 4.1.5
+        text: "Ensure that default service accounts are not actively used. (Automated)"
+        audit: |
+          # Check workloads using the default service account
+          kubectl get deploy,sts,ds,job,cronjob,pod -A -o json | jq -r '
+            .items[]
+            | if .kind=="CronJob" then
+                [.metadata.namespace,
+                .kind,
+                .metadata.name,
+                (.spec.jobTemplate.spec.template.spec.serviceAccountName // "default")]
+              elif .kind=="Pod" then
+                [.metadata.namespace,
+                .kind,
+                .metadata.name,
+                (.spec.serviceAccountName // "default")]
+              else
+                [.metadata.namespace,
+                .kind,
+                .metadata.name,
+                (.spec.template.spec.serviceAccountName // "default")]
+              end
+            | select(.[3] == "default")
+            | @tsv
+          ' | while read line; do
+            echo "DEFAULT_SERVICE_ACCOUNT_IN_USE"
+          done
+
+          # Check default ServiceAccounts that still auto-mount tokens
+          kubectl get serviceaccounts -A -o json | jq -r '
+            .items[]
+            | select(
+                .metadata.name=="default"
+                and (.automountServiceAccountToken != false)
+              )
+            | @tsv
+          ' | while read line; do
+            echo "DEFAULT_SA_AUTOMOUNT_ENABLED"
+          done
+
+        tests:
+          test_items:
+            - flag: DEFAULT_SERVICE_ACCOUNT_IN_USE
+              set: false
+            - flag: DEFAULT_SA_AUTOMOUNT_ENABLED
+              set: false
+
+        remediation: |
+          Create dedicated ServiceAccounts for workloads that require Kubernetes API,
+          IRSA, or EKS Pod Identity access, and configure workloads to use them
+          instead of the namespace default ServiceAccount.
+
+          For workloads that do not require Kubernetes API access, disable automatic
+          service account token mounting by setting:
+
+            automountServiceAccountToken: false
+
+          on the default ServiceAccount in each namespace.
+
+          Example:
+
+            kubectl patch serviceaccount default -n <namespace> \
+              -p '{"automountServiceAccountToken": false}'
+
+          Also update workload manifests to explicitly specify
+          serviceAccountName instead of relying on the default ServiceAccount.
+
+        scored: true
+
+      - id: 4.1.6
+        text: "Ensure that Service Account Tokens are only mounted where necessary (Automated)"
+        audit: |
+          # Check workload resources where automountServiceAccountToken is enabled
+          kubectl get deploy,sts,ds,job,cronjob,pod -A -o json | jq -r '
+            .items[]
+            | if .kind=="CronJob" then
+                {
+                  namespace: .metadata.namespace,
+                  kind: .kind,
+                  name: .metadata.name,
+                  automount: (.spec.jobTemplate.spec.template.spec.automountServiceAccountToken // "unset"),
+                  serviceAccount: (.spec.jobTemplate.spec.template.spec.serviceAccountName // "default")
+                }
+              elif .kind=="Pod" then
+                {
+                  namespace: .metadata.namespace,
+                  kind: .kind,
+                  name: .metadata.name,
+                  automount: (.spec.automountServiceAccountToken // "unset"),
+                  serviceAccount: (.spec.serviceAccountName // "default")
+                }
+              else
+                {
+                  namespace: .metadata.namespace,
+                  kind: .kind,
+                  name: .metadata.name,
+                  automount: (.spec.template.spec.automountServiceAccountToken // "unset"),
+                  serviceAccount: (.spec.template.spec.serviceAccountName // "default")
+                }
+              end
+            | select(.automount != false)
+          ' | while read line; do
+            echo "POD_AUTOMOUNT_ENABLED"
+          done
+
+          # Check ServiceAccounts with automount enabled
+          kubectl get serviceaccounts -A -o json | jq -r '
+            .items[]
+            | select(.automountServiceAccountToken != false)
+          ' | while read line; do
+            echo "SERVICEACCOUNT_AUTOMOUNT_ENABLED"
+          done
+
+        tests:
+          test_items:
+            - flag: POD_AUTOMOUNT_ENABLED
+              set: false
+            - flag: SERVICEACCOUNT_AUTOMOUNT_ENABLED
+              set: false
+
+        remediation: |
+          Set automountServiceAccountToken: false for Pods and ServiceAccounts
+          that do not require Kubernetes API access.
+
+          Use dedicated ServiceAccounts for workloads requiring Kubernetes API,
+          IRSA, or EKS Pod Identity instead of relying on default token mounting.
+
+          Verify that only workloads with a documented need continue to receive
+          ServiceAccount tokens.
+
+        scored: true
+
+      - id: 4.1.7
+        text: "Standardize EKS cluster access by using access entries, policies, and scoped permissions (Automated)"
+        audit: |
+          auth_mode=$(aws eks describe-cluster \
+            --name "$CLUSTER_NAME" \
+            --query 'cluster.accessConfig.authenticationMode' \
+            --output text 2>/dev/null)
+
+          case "$auth_mode" in
+            API)
+              echo "AUTH_MODE_API"
+              ;;
+            API_AND_CONFIG_MAP)
+              echo "AUTH_MODE_API_AND_CONFIG_MAP"
+              ;;
+            CONFIG_MAP)
+              echo "AUTH_MODE_CONFIG_MAP"
+              ;;
+          esac
+
+          aws eks list-access-entries \
+            --cluster-name "$CLUSTER_NAME" >/dev/null 2>&1 \
+            && echo "ACCESS_ENTRIES_SUPPORTED"
+
+        tests:
+          test_items:
+            - flag: AUTH_MODE_API
+              set: true
+            - flag: AUTH_MODE_API_AND_CONFIG_MAP
+              set: true
+            - flag: ACCESS_ENTRIES_SUPPORTED
+              set: true
+          bin_op: and
+
+        remediation: |
+          Use Amazon EKS Access Entries as the preferred mechanism for managing
+          Kubernetes API access.
+
+          1. Open Amazon EKS in the AWS Management Console.
+          2. Select your cluster.
+          3. Open the Access tab.
+          4. Select Manage in the Access Configuration section.
+          5. Configure the Cluster Authentication Mode as one of:
+            - API (recommended)
+            - API_AND_CONFIG_MAP (supported during migration)
+
+          Avoid CONFIG_MAP mode for new clusters. Migrate existing aws-auth
+          ConfigMap mappings to EKS Access Entries and use namespace-scoped
+          access policies where possible.
+
+        scored: false
+
+      - id: 4.1.8
+        text: "Limit use of the Bind, Impersonate and Escalate permissions in the Kubernetes cluster (Manual)"
+        type: "manual"
+        remediation: |
+          Remove bind, impersonate, and escalate permissions from any custom Role or
+          ClusterRole that does not require them for an approved administrative function.
+
+          Where these permissions are required:
+          - Keep them scoped as narrowly as possible.
+          - Prefer namespace-scoped Roles instead of ClusterRoles wherever possible.
+          - Use EKS access entries and associated access policies for standard cluster access,
+            and use custom Kubernetes RBAC only when predefined access policies do not meet
+            the requirement.
+          - Review access entries that reference Kubernetes groups and remove or narrow any
+            group mappings that grant these permissions.
+          - Do not assign bind, impersonate, or escalate permissions to workload service
+            accounts unless there is a documented operational requirement. Review
+            DaemonSet and CSI driver service accounts first.
+          - Revalidate access after making changes to ensure only approved administrative
+            identities retain these permissions.
+        scored: false
+
+      - id: 4.1.9
+        text: "Minimize access to create persistent volumes (Manual)"
+        type: "manual"
+        remediation: |
+          Remove persistent storage creation rights from any user, group, or service account
+          that does not require them, and replace broad assignments with the lowest-privilege
+          role and narrowest scope possible.
+
+          - Remove unnecessary create access to PersistentVolume objects wherever possible.
+          - Restrict PersistentVolumeClaim and StorageClass creation permissions to only
+            approved users, groups, and service accounts.
+          - Review CSI driver service accounts and their RBAC permissions, especially for
+            storage components such as the Amazon EBS CSI driver and Amazon EFS CSI
+            driver, and remove unnecessary privileges.
+          - Limit direct PersistentVolume and StorageClass administration to trusted
+            administrators only.
+          - Verify that authorized workloads can still provision storage through the approved
+            CSI driver and StorageClass after the changes.
+        scored: false
+
+      - id: 4.1.10
+        text: "Minimize access to the proxy sub-resource of nodes (Manual)"
+        type: "manual"
+        remediation: |
+          Reduce custom RBAC access to the nodes/proxy API path so it is limited to
+          approved administrative identities that require node-level access.
+
+          - Remove nodes/proxy permissions from any custom Role or ClusterRole where
+            node-level proxy access is not explicitly required.
+          - Replace nodes/proxy access with more specific resources and verbs where
+            possible, and prefer namespace-scoped Roles over ClusterRoles when the
+            workload permits.
+          - Remove RoleBinding or ClusterRoleBinding assignments that grant
+            nodes/proxy access to workload service accounts, CI/CD identities, or
+            broadly shared operator groups unless there is a documented operational
+            requirement.
+          - Review EKS access entries that use Kubernetes groups and remove or narrow
+            any group mappings that grant nodes/proxy access through RBAC.
+          - Restrict any remaining nodes/proxy access to dedicated platform
+            administrators or support identities, and document the purpose and owner
+            of each assignment.
+          - Revalidate roles and bindings after making changes to ensure required
+            node-support operations continue to function.
+        scored: false
+
+      - id: 4.1.11
+        text: "Minimize access to webhook configuration objects (Manual)"
+        type: "manual"
+        remediation: |
+          Remove create, update, patch, and delete permissions on
+          ValidatingWebhookConfiguration and MutatingWebhookConfiguration objects
+          from broad Role and ClusterRole assignments.
+
+          - Grant webhook configuration management only to dedicated platform
+            administrators with a documented operational requirement.
+          - Review EKS access entries that use Kubernetes groups and remove or narrow
+            any group mappings that grant webhook configuration management through
+            Kubernetes RBAC.
+          - Remove webhook configuration management permissions from workload
+            service accounts, CI/CD identities, and broadly deployed components
+            unless explicitly required.
+          - Review existing webhook configurations and limit their rules,
+            namespaceSelector, objectSelector, and failurePolicy so they apply only
+            to the required namespaces, resources, and operations. Avoid broad
+            catch-all configurations and use a fail-open policy with a timeout of
+            less than 30 seconds where appropriate.
+          - Revalidate admission behavior after making changes to ensure required
+            controllers continue to function and webhook scope does not negatively
+            impact cluster operations.
+        scored: false
+
+      - id: 4.1.12
+        text: "Minimize access to the service account token creation (Manual)"
+        type: "manual"
+        remediation: |
+          Review all Role and ClusterRole definitions for access to the
+          serviceaccounts/token subresource and remove that permission from any
+          user, group, CI/CD identity, or workload service account that does not
+          have a documented operational requirement.
+
+          - Remove serviceaccounts/token permissions from broad operational roles,
+            CI/CD identities, default service accounts, and general workload
+            service accounts.
+          - Reassign token-creation permissions only to approved administrative or
+            platform identities with a documented need to issue service account
+            tokens.
+          - Validate that workloads using projected service account tokens,
+            including IRSA and EKS Pod Identity, continue to function correctly
+            after the changes.
+          - Review RoleBinding and ClusterRoleBinding assignments to ensure no
+            unintended user, group, or service account still inherits
+            serviceaccounts/token permissions. Give extra scrutiny to DaemonSet
+            and other broadly deployed service accounts.
+        scored: false
+
+  - id: 4.2
+    text: "Pod Security Standards"
+    checks:
+      - id: 4.2.1
+        text: "Minimize the admission of privileged containers (Automated)"
+        audit: |
+          kubectl get ns --show-labels
+          kubectl get pods -A -o json | jq -r '
+            .items[]
+            | select(.metadata.namespace != "kube-system")
+            | .metadata.namespace as $ns
+            | .metadata.name as $pod
+            | def scan($type; $list):
+                $list[]?
+                | select(.securityContext.privileged == true)
+                | "\($ns)/\($pod)\t\($type)=\(.name)\tprivileged=true";
+            scan("container"; .spec.containers),
+            scan("initContainer"; .spec.initContainers),
+            scan("ephemeralContainer"; .spec.ephemeralContainers)
+          ' | while read line; do
+            echo "PRIVILEGED_CONTAINER_FOUND"
+          done
+        tests:
+          test_items:
+            - flag: PRIVILEGED_CONTAINER_FOUND
+              set: false
+        remediation: |
+          Configure Pod Security Admission on workload namespaces to deny
+          privileged containers.
+          Label workload namespaces with:
+            kubectl label ns <namespace> \
+              pod-security.kubernetes.io/enforce=restricted --overwrite
+          During rollout, also configure:
+            kubectl label ns <namespace> \
+              pod-security.kubernetes.io/warn=restricted --overwrite
+            kubectl label ns <namespace> \
+              pod-security.kubernetes.io/audit=restricted --overwrite
+          Remove securityContext.privileged: true from all regular containers,
+          init containers, and ephemeral containers unless they are approved
+          platform workloads. Review system namespaces separately before applying
+          Pod Security Admission labels.
+        scored: true
+
+      - id: 4.2.2
+        text: "Minimize the admission of containers wishing to share the host process ID namespace (Automated)"
+        audit: |
+          kubectl get ns --show-labels
+          kubectl get pods -A -o json | jq -r '
+            .items[]
+            | select(.spec.hostPID == true)
+            | "HOSTPID_FOUND"
+          '
+        tests:
+          test_items:
+            - flag: HOSTPID_FOUND
+              set: false
+
+        remediation: |
+          Configure Pod Security Admission on workload namespaces so pods requesting
+          spec.hostPID: true are denied.
+          Label each workload namespace to enforce the restricted profile:
+            kubectl label ns <namespace> \
+              pod-security.kubernetes.io/enforce=restricted --overwrite
+          During rollout, also configure:
+            kubectl label ns <namespace> \
+              pod-security.kubernetes.io/warn=restricted --overwrite
+            kubectl label ns <namespace> \
+              pod-security.kubernetes.io/audit=restricted --overwrite
+          Remove spec.hostPID: true from workload manifests and redeploy affected
+          workloads so they are evaluated under the enforced Pod Security Admission
+          policy. Review and tightly scope any required exceptions for approved
+          platform workloads or namespaces.
+        scored: true
+
+      - id: 4.2.3
+        text: "Minimize the admission of containers wishing to share the host IPC namespace (Automated)"
+        audit: |
+          kubectl get pods -A -o json | jq -r '
+            .items[]
+            | select(.spec.hostIPC == true)
+            | "HOSTIPC_FOUND"
+          '
+        tests:
+          test_items:
+            - flag: HOSTIPC_FOUND
+              set: false
+        remediation: |
+          Configure Pod Security Admission on workload namespaces to deny pods that
+          request spec.hostIPC: true.
+          Label each workload namespace to enforce the restricted profile:
+            kubectl label ns <namespace> \
+              pod-security.kubernetes.io/enforce=restricted --overwrite
+          During rollout, you may also configure:
+            kubectl label ns <namespace> \
+              pod-security.kubernetes.io/warn=restricted --overwrite
+            kubectl label ns <namespace> \
+              pod-security.kubernetes.io/audit=restricted --overwrite
+          Remove spec.hostIPC: true from workload manifests and redeploy affected
+          workloads.
+
+        scored: true
+
+      - id: 4.2.4
+        text: "Minimize the admission of containers wishing to share the host network namespace (Automated)"
+        audit: |
+          kubectl get pods -A -o json | jq -r '
+            .items[]
+            | select(.spec.hostNetwork == true)
+            | "\(.metadata.namespace)/\(.metadata.name)\thostNetwork=true"
+          '
+        tests:
+          test_items:
+            - flag: hostNetwork=true
+              set: false
+        remediation: |
+          Configure Pod Security Admission to prevent pods from using
+          spec.hostNetwork: true.
+          Label workload namespaces with the restricted Pod Security Standard:
+            kubectl label ns <namespace> \
+              pod-security.kubernetes.io/enforce=restricted --overwrite
+          Remove spec.hostNetwork: true from workload manifests unless it is
+          required for approved platform workloads.
+        scored: true
+
+      - id: 4.2.5
+        text: "Minimize the admission of containers with allowPrivilegeEscalation (Automated)"
+        audit: |
+          kubectl get pods -A -o json | jq -r '
+            .items[]
+            | .metadata.namespace as $ns
+            | .metadata.name as $pod
+            | def scan($type; $list):
+                $list[]?
+                | select((.securityContext.allowPrivilegeEscalation // "unset") != false)
+                | "\($ns)/\($pod)\t\($type)=\(.name)\tallowPrivilegeEscalation=\(.securityContext.allowPrivilegeEscalation // "unset")";
+            scan("container"; .spec.containers),
+            scan("initContainer"; .spec.initContainers),
+            scan("ephemeralContainer"; .spec.ephemeralContainers)
+          '
+        tests:
+          test_items:
+            - flag: allowPrivilegeEscalation=
+              set: false
+        remediation: |
+          Configure Pod Security Admission to require
+          securityContext.allowPrivilegeEscalation: false.
+          Label workload namespaces with the restricted Pod Security Standard:
+            kubectl label ns <namespace> \
+              pod-security.kubernetes.io/enforce=restricted --overwrite
+          Update workload manifests to explicitly set:
+            securityContext:
+              allowPrivilegeEscalation: false
+        scored: true
+
+  - id: 4.3
+    text: "CNI Plugin"
+    checks:
+      - id: 4.3.1
+        text: "Ensure VPC CNI network policy support is enabled (Automated)"
+        audit: |
+          aws eks describe-addon \
+            --cluster-name "$CLUSTER_NAME" \
+            --addon-name vpc-cni \
+            --query 'addon.{status:status,configurationValues:configurationValues}' \
+            --output json | jq -r '
+              select(
+                .status == "ACTIVE" and
+                (.configurationValues | fromjson? | .enableNetworkPolicy == "true")
+              )
+              | "NETWORK_POLICY_ENABLED"
+            '
+        tests:
+          test_items:
+            - flag: NETWORK_POLICY_ENABLED
+              set: true
+        remediation: |
+          Enable network policy support for the Amazon VPC CNI add-on by setting
+          enableNetworkPolicy to true.
+          Example:
+            aws eks update-addon \
+              --cluster-name <cluster-name> \
+              --addon-name vpc-cni \
+              --configuration-values '{"enableNetworkPolicy":"true"}'
+        scored: false
+
+      - id: 4.3.2
+        text: "Ensure required workloads are covered by Kubernetes network policies (Manual)"
+        type: "manual"
+        remediation: |
+          Review NetworkPolicy and ClusterNetworkPolicy objects to ensure all
+          required workloads are covered by network policies. Apply a default-deny
+          policy where appropriate and allow only the required ingress and egress
+          traffic.
+        scored: true
+
+  - id: 4.4
+    text: "Secrets Management"
+    checks:
+      - id: 4.4.1
+        text: "Prefer exposing secrets as mounted files rather than environment variables (Automated)"
+        audit: |
+          kubectl get deploy,ds,sts,job,cronjob,pod -A -o json | jq -r '
+            .items[]
+            | .kind as $kind
+            | .metadata.namespace as $ns
+            | .metadata.name as $name
+            | (if $kind == "Pod" then .spec else .spec.template.spec end) as $spec
+            | select([ $spec.containers[]?, $spec.initContainers[]? ]
+                | any(.env[]?.valueFrom.secretKeyRef? or .envFrom[]?.secretRef?))
+            | "\($ns)\t\($kind)/\($name)"
+          '
+        tests:
+          test_items:
+            - flag: secretKeyRef
+              set: false
+            - flag: secretRef
+              set: false
+        remediation: |
+          Replace env.valueFrom.secretKeyRef and envFrom.secretRef with
+          mounted Secret volumes or the AWS Secrets Store CSI Driver, and
+          update applications to read secrets from mounted files.
+        scored: true
+
+      - id: 4.4.2
+        text: "Consider external secret storage (Manual)"
+        type: "manual"
+        remediation: |
+          Store high-value secrets in AWS Secrets Manager and configure workloads
+          to retrieve them using the AWS Secrets and Configuration Provider with
+          the Secrets Store CSI Driver. Use EKS Pod Identity or IRSA to grant
+          least-privilege access to secrets.
+        scored: false
+
+  - id: 4.5
+    text: "General Policies"
+    checks:
+      - id: 4.5.1
+        text: "Create administrative boundaries between resources using namespaces (Manual)"
+        type: manual
+        audit: |
+          kubectl get namespaces
+          kubectl get roles,rolebindings -A
+          kubectl get resourcequota,limitrange,networkpolicy -A
+          aws eks list-access-entries --cluster-name "$CLUSTER_NAME"
+        remediation: |
+          Create dedicated namespaces for teams, applications, or environments instead
+          of using the default namespace. Apply namespace-scoped RBAC, ResourceQuota,
+          LimitRange, ServiceAccounts, and NetworkPolicies to enforce administrative
+          boundaries. Scope EKS Access Entries and Access Policies to namespaces
+          wherever possible.
+        scored: false
+
+      - id: 4.5.2
+        text: "The default namespace should not be used (Automated)"
+        audit: |
+          kubectl get pod,svc,configmap,secret,serviceaccount,deploy,statefulset,daemonset,job,cronjob,ingress,role,rolebinding,resourcequota,limitrange,networkpolicy -n default | grep -v "^No resources found" && echo "USER_RESOURCES_IN_DEFAULT_FOUND"
+        tests:
+          test_items:
+            - flag: USER_RESOURCES_IN_DEFAULT_FOUND
+              set: false
+        remediation: |
+          Move user workloads out of the default namespace into dedicated namespaces.
+          Update manifests and deployment pipelines to explicitly specify
+          metadata.namespace. Use namespace-scoped RBAC, ResourceQuota,
+          LimitRange, ServiceAccounts, and NetworkPolicies for governance.
+        scored: true

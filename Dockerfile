@@ -15,7 +15,7 @@ WORKDIR /opt/kube-bench/
 # https://github.com/aquasecurity/kube-bench/issues/109
 # https://github.com/aquasecurity/kube-bench/issues/1656
 RUN apk --no-cache add procps findutils
-
+RUN apk add --no-cache curl
 # Upgrading apk-tools to remediate CVE-2021-36159 - https://snyk.io/vuln/SNYK-ALPINE314-APKTOOLS-1533752
 # https://github.com/aquasecurity/kube-bench/issues/943
 RUN apk --no-cache upgrade apk-tools

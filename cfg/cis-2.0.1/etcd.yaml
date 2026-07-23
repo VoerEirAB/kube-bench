@@ -1,0 +1,143 @@
+---
+controls:
+version: "cis-2.0.1"
+id: 2
+text: "Etcd Node Configuration"
+type: "etcd"
+groups:
+  - id: 2
+    text: "Etcd Node Configuration"
+    checks:
+      - id: 2.1
+        text: 'Ensure that the --cert-file and --key-file arguments are set as appropriate (Automated)'
+        audit: "/bin/ps -ef | grep etcd | grep -v grep"
+        tests:
+          bin_op: and
+          test_items:
+            - flag: "--cert-file"
+              env: "ETCD_CERT_FILE"
+            - flag: "--key-file"
+              env: "ETCD_KEY_FILE"
+        impact: "Client connections only over TLS would be served."
+        remediation: |
+          Follow the etcd service documentation and configure TLS encryption.
+          Then, edit the etcd pod specification file
+          /etc/kubernetes/manifests/etcd.yaml on the control plane node and set:
+          --cert-file=</path/to/cert-file>
+          --key-file=</path/to/key-file>
+        scored: true
+
+      - id: 2.2
+        text: 'Ensure that the --client-cert-auth argument is set to true (Automated)'
+        audit: "/bin/ps -ef | grep etcd | grep -v grep"
+        tests:
+          test_items:
+            - flag: "--client-cert-auth"
+              env: "ETCD_CLIENT_CERT_AUTH"
+              compare:
+                op: eq
+                value: true
+        impact: "All clients attempting to access the etcd server will require a valid client certificate."
+        remediation: |
+          Edit the etcd pod specification file
+          /etc/kubernetes/manifests/etcd.yaml on the control plane node and
+          set the following parameter.
+          --client-cert-auth="true"
+        scored: true
+
+      - id: 2.3
+        text: 'Ensure that the --auto-tls argument is not set to true (Automated)'
+        audit: "/bin/ps -ef | grep etcd | grep -v grep"
+        tests:
+          bin_op: or
+          test_items:
+            - flag: "--auto-tls"
+              env: "ETCD_AUTO_TLS"
+              set: false
+            - flag: "--auto-tls"
+              env: "ETCD_AUTO_TLS"
+              compare:
+                op: eq
+                value: false
+        impact: "Clients will not be able to use self-signed certificates for TLS."
+        remediation: |
+          Edit the etcd pod specification file
+          /etc/kubernetes/manifests/etcd.yaml on the control plane node
+          and either remove the `--auto-tls` parameter or set it to
+          `false`.
+          --auto-tls=false
+        scored: true
+
+      - id: 2.4
+        text: 'Ensure that the --peer-cert-file and --peer-key-file arguments are set as appropriate (Automated)'
+        audit: "/bin/ps -ef | grep etcd | grep -v grep"
+        tests:
+          bin_op: and
+          test_items:
+            - flag: "--peer-cert-file"
+              env: "ETCD_PEER_CERT_FILE"
+            - flag: "--peer-key-file"
+              env: "ETCD_PEER_KEY_FILE"
+        impact: "etcd cluster peers would need to set up TLS for their communication."
+        remediation: |
+          Follow the etcd service documentation and configure peer TLS encryption
+          as appropriate for your etcd cluster.
+          Then, edit the etcd pod specification file
+          /etc/kubernetes/manifests/etcd.yaml on the control plane node and set
+          the following parameters.
+          --peer-cert-file=</path/to/peer-cert-file>
+          --peer-key-file=</path/to/peer-key-file>
+        scored: true
+
+      - id: 2.5
+        text: 'Ensure that the --peer-client-cert-auth argument is set to true (Automated)'
+        audit: "/bin/ps -ef | grep etcd | grep -v grep"
+        tests:
+          test_items:
+            - flag: "--peer-client-cert-auth"
+              env: "ETCD_PEER_CLIENT_CERT_AUTH"
+              compare:
+                op: eq
+                value: true
+        impact: "All peers attempting to communicate with the etcd server will require a valid client certificate for authentication."
+        remediation: |
+          Edit the etcd pod specification file
+          /etc/kubernetes/manifests/etcd.yaml on the control plane node and set
+          the following parameter.
+          --peer-client-cert-auth=true
+        scored: true
+
+      - id: 2.6
+        text: 'Ensure that the --peer-auto-tls argument is not set to true (Automated)'
+        audit: "/bin/ps -ef | grep etcd | grep -v grep"
+        tests:
+          bin_op: or
+          test_items:
+            - flag: "--peer-auto-tls"
+              env: "ETCD_PEER_AUTO_TLS"
+              set: false
+            - flag: "--peer-auto-tls"
+              env: "ETCD_PEER_AUTO_TLS"
+              compare:
+                op: eq
+                value: false
+        impact: "All peers attempting to communicate with the etcd server will require a valid client certificate for authentication."
+        remediation: |
+          Edit the etcd pod specification file
+          /etc/kubernetes/manifests/etcd.yaml on the control plane node and either
+          remove the --peer-auto-tls parameter or set it to false.
+          --peer-auto-tls=false
+        scored: true
+
+      - id: 2.7
+        text: 'Ensure that a unique Certificate Authority is used for etcd (Manual)'
+        type: "manual"
+        remediation: |
+          Follow the etcd documentation and create a dedicated certificate authority
+          for the etcd service.
+
+          Then, edit the etcd pod specification file
+          /etc/kubernetes/manifests/etcd.yaml on the control plane node and set:
+
+          --trusted-ca-file=</path/to/ca-file>
+        scored: false

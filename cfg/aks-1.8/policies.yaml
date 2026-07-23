@@ -38,15 +38,32 @@ groups:
         scored: true
 
       - id: 4.1.4
-        text: "Minimize access to create pods (Manual)"
-        type: "manual"
+        text: "Minimize access to create pods (Automated)"
+        audit: |
+          echo "Roles and ClusterRoles with 'create' access on 'pods':"
+          access=$(kubectl get roles,clusterroles -A -o json | jq '
+            [.items[] |
+              select(
+                .rules[]? |
+                (.resources[]? == "pods" and .verbs[]? == "create")
+              )
+            ] | length')
+
+          if [ "$access" -gt 0 ]; then
+            echo "pods_create_access"
+          fi
+        tests:
+          test_items:
+            - flag: pods_create_access
+              set: false
         remediation: |
           Review all roles and clusterroles that have "create" permission on "pods".
-           Where possible, remove or restrict this permission to only required service accounts.
-          Use:
+
+          Where possible, remove or restrict this permission to only required service accounts.
+
+          Use the following commands to edit roles and clusterroles:
             - `kubectl edit role -n <namespace> <role>`
             - `kubectl edit clusterrole <name>`
-          Apply least privilege principle across the cluster.
         scored: true
 
       - id: 4.1.5
@@ -64,11 +81,13 @@ groups:
         type: "manual"
         remediation: |
           Pods that do not need access to the Kubernetes API should not mount service account tokens.
+
           To disable token mounting in a pod definition:
           ```yaml
           spec:
             automountServiceAccountToken: false
           ```
+
           Or patch an existing pod's spec (recommended via workload template):
           Patch not possible for running pods — update the deployment YAML or recreate pods with updated spec.
         scored: true
@@ -136,7 +155,7 @@ groups:
         scored: false
 
   - id: 4.2
-    text: "Pod Security Policies"
+    text: "Pod Security Standards"
     checks:
       - id: 4.2.1
         text: "Minimize the admission of privileged containers (Manual)"
